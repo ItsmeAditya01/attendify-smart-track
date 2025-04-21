@@ -52,12 +52,7 @@ const Dashboard = () => {
               description="Across all courses"
               icon={<Calendar className="h-6 w-6 text-attendance-primary" />}
             />
-            <StatCard
-              title="Average Attendance"
-              value={`${stats.attendanceRate}%`}
-              description="Overall attendance rate"
-              icon={<Clock className="h-6 w-6 text-attendance-secondary" />}
-            />
+            {/* Attendance section/card removed for admin */}
             <Card className="attendance-card">
               <CardHeader>
                 <CardTitle>Quick Actions</CardTitle>
@@ -100,6 +95,7 @@ const Dashboard = () => {
               description="Scheduled today"
               icon={<Clock className="h-6 w-6 text-attendance-accent" />}
             />
+            {/* Attendance section/card removed for faculty */}
             <Card className="col-span-1 md:col-span-2 lg:col-span-3 attendance-card">
               <CardHeader>
                 <CardTitle>Upcoming Classes</CardTitle>
