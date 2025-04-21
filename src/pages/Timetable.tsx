@@ -11,7 +11,6 @@ import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { useToast } from "@/components/ui/use-toast";
 import { Plus, Clock, Calendar, BookOpen, MapPin } from "lucide-react";
 
-// Types
 interface Class {
   id: string;
   day: string;
@@ -22,7 +21,6 @@ interface Class {
   class: string;
 }
 
-// Mock data
 const daysOfWeek = ["Monday", "Tuesday", "Wednesday", "Thursday", "Friday", "Saturday"];
 const timeSlots = [
   "09:00 AM - 10:30 AM",
@@ -114,8 +112,8 @@ const Timetable = () => {
   const [currentClass, setCurrentClass] = useState("CS-301");
   const [newClass, setNewClass] = useState<Omit<Class, "id">>({
     day: "Monday",
-    startTime: "09:00 AM",
-    endTime: "10:30 AM",
+    startTime: "",
+    endTime: "",
     subject: "",
     room: "",
     class: "CS-301"
@@ -123,9 +121,22 @@ const Timetable = () => {
 
   const filteredClasses = classes.filter(cls => cls.class === currentClass);
 
+  function formatTimeToString(time24: string): string {
+    if (!time24) return "";
+    const [h,m] = time24.split(':');
+    let hh = Number(h), ampm = "AM";
+    if (hh === 0) hh = 12;
+    else if (hh === 12) ampm = "PM";
+    else if (hh > 12) { hh -= 12; ampm = "PM"; }
+    return `${String(hh).padStart(2,"0")}:${m} ${ampm}`;
+  }
+
+  function isTimeOverlap(start1:string, end1:string, start2:string, end2:string) {
+    return start1 < end2 && start2 < end1;
+  }
+
   const handleAddClass = () => {
-    // Simple validation
-    if (!newClass.subject || !newClass.room) {
+    if (!newClass.subject || !newClass.room || !newClass.startTime || !newClass.endTime) {
       toast({
         title: "Error",
         description: "Please fill in all required fields",
@@ -133,19 +144,27 @@ const Timetable = () => {
       });
       return;
     }
-
-    // Check for time slot conflicts
-    const conflictingClass = classes.find(
-      cls => 
-        cls.day === newClass.day && 
-        cls.class === newClass.class &&
-        cls.startTime === newClass.startTime
+    if (newClass.endTime <= newClass.startTime) {
+      toast({
+        title: "Invalid Time Slot",
+        description: "End time must be after start time.",
+        variant: "destructive",
+      });
+      return;
+    }
+    const conflict = classes.find(cls =>
+      cls.day === newClass.day &&
+      cls.class === newClass.class &&
+      isTimeOverlap(
+        newClass.startTime, newClass.endTime,
+        cls.startTime.length === 5 ? cls.startTime : "",
+        cls.endTime.length === 5 ? cls.endTime : ""
+      )
     );
-
-    if (conflictingClass) {
+    if (conflict) {
       toast({
         title: "Time Slot Conflict",
-        description: `There is already a class scheduled for ${newClass.day} at ${newClass.startTime}`,
+        description: `There is already a class scheduled for ${newClass.day} at this time slot.`,
         variant: "destructive",
       });
       return;
@@ -153,7 +172,9 @@ const Timetable = () => {
 
     const newClassWithId: Class = {
       ...newClass,
-      id: `${classes.length + 1}`
+      id: `${classes.length + 1}`,
+      startTime: formatTimeToString(newClass.startTime),
+      endTime: formatTimeToString(newClass.endTime),
     };
 
     setClasses(prev => [...prev, newClassWithId]);
@@ -162,15 +183,15 @@ const Timetable = () => {
       description: `${newClass.subject} has been added to the timetable`,
     });
 
-    // Reset subject and room but keep the other selections
     setNewClass({
       ...newClass,
       subject: "",
-      room: ""
+      room: "",
+      startTime: "",
+      endTime: ""
     });
   };
 
-  // Only admin and faculty can edit timetable
   const canEdit = user?.role === "admin" || user?.role === "faculty";
 
   return (
@@ -182,7 +203,6 @@ const Timetable = () => {
             <h1 className="text-2xl font-bold">Class Timetable</h1>
             <p className="text-gray-600">View and manage class schedules</p>
           </div>
-          
           {canEdit && (
             <div className="mt-4 sm:mt-0">
               <Dialog>
@@ -214,7 +234,6 @@ const Timetable = () => {
                           </SelectContent>
                         </Select>
                       </div>
-                      
                       <div className="space-y-2">
                         <Label htmlFor="class">Class</Label>
                         <Select 
@@ -232,47 +251,30 @@ const Timetable = () => {
                         </Select>
                       </div>
                     </div>
-                    
                     <div className="grid grid-cols-2 gap-4">
                       <div className="space-y-2">
                         <Label htmlFor="startTime">Start Time</Label>
-                        <Select 
+                        <Input
+                          id="startTime"
+                          type="time"
                           value={newClass.startTime}
-                          onValueChange={(value) => setNewClass({...newClass, startTime: value})}
-                        >
-                          <SelectTrigger>
-                            <SelectValue placeholder="Select" />
-                          </SelectTrigger>
-                          <SelectContent>
-                            <SelectItem value="09:00 AM">09:00 AM</SelectItem>
-                            <SelectItem value="10:45 AM">10:45 AM</SelectItem>
-                            <SelectItem value="01:00 PM">01:00 PM</SelectItem>
-                            <SelectItem value="02:45 PM">02:45 PM</SelectItem>
-                            <SelectItem value="04:30 PM">04:30 PM</SelectItem>
-                          </SelectContent>
-                        </Select>
+                          onChange={e => setNewClass({...newClass, startTime: e.target.value})}
+                          step="300"
+                          placeholder="Start Time"
+                        />
                       </div>
-                      
                       <div className="space-y-2">
                         <Label htmlFor="endTime">End Time</Label>
-                        <Select 
+                        <Input
+                          id="endTime"
+                          type="time"
                           value={newClass.endTime}
-                          onValueChange={(value) => setNewClass({...newClass, endTime: value})}
-                        >
-                          <SelectTrigger>
-                            <SelectValue placeholder="Select" />
-                          </SelectTrigger>
-                          <SelectContent>
-                            <SelectItem value="10:30 AM">10:30 AM</SelectItem>
-                            <SelectItem value="12:15 PM">12:15 PM</SelectItem>
-                            <SelectItem value="02:30 PM">02:30 PM</SelectItem>
-                            <SelectItem value="04:15 PM">04:15 PM</SelectItem>
-                            <SelectItem value="06:00 PM">06:00 PM</SelectItem>
-                          </SelectContent>
-                        </Select>
+                          onChange={e => setNewClass({...newClass, endTime: e.target.value})}
+                          step="300"
+                          placeholder="End Time"
+                        />
                       </div>
                     </div>
-                    
                     <div className="space-y-2">
                       <Label htmlFor="subject">Subject Name</Label>
                       <Input 
@@ -282,7 +284,6 @@ const Timetable = () => {
                         placeholder="e.g., Data Structures"
                       />
                     </div>
-                    
                     <div className="space-y-2">
                       <Label htmlFor="room">Room/Lab</Label>
                       <Input 
@@ -292,7 +293,6 @@ const Timetable = () => {
                         placeholder="e.g., Room 204"
                       />
                     </div>
-                    
                     <Button className="w-full mt-4" onClick={handleAddClass}>
                       <Plus className="mr-2 h-4 w-4" /> Add to Timetable
                     </Button>
@@ -302,7 +302,6 @@ const Timetable = () => {
             </div>
           )}
         </div>
-        
         <Card className="animate-scale-in">
           <CardHeader>
             <Tabs defaultValue="CS-301" onValueChange={setCurrentClass}>
@@ -318,7 +317,6 @@ const Timetable = () => {
               {daysOfWeek.map(day => {
                 const dayClasses = filteredClasses.filter(cls => cls.day === day);
                 if (dayClasses.length === 0) return null;
-                
                 return (
                   <div key={day} className="space-y-4">
                     <h3 className="font-semibold text-lg">{day}</h3>
@@ -327,7 +325,10 @@ const Timetable = () => {
                         <div key={cls.id} className="p-4 rounded-lg border border-border bg-white hover:shadow-md transition-shadow flex flex-col md:flex-row">
                           <div className="md:w-1/4 flex items-center gap-2 mb-2 md:mb-0">
                             <Clock className="h-4 w-4 text-attendance-primary" />
-                            <span>{cls.startTime} - {cls.endTime}</span>
+                            <span>
+                              {cls.startTime.length === 5 ? formatTimeToString(cls.startTime) : cls.startTime} - 
+                              {cls.endTime.length === 5 ? formatTimeToString(cls.endTime) : cls.endTime}
+                            </span>
                           </div>
                           <div className="md:w-1/4 flex items-center gap-2 mb-2 md:mb-0">
                             <BookOpen className="h-4 w-4 text-attendance-secondary" />
@@ -348,7 +349,6 @@ const Timetable = () => {
                   </div>
                 );
               })}
-              
               {filteredClasses.length === 0 && (
                 <div className="text-center py-8 text-muted-foreground">
                   <Calendar className="h-12 w-12 mx-auto mb-4 text-muted" />
