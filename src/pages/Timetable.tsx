@@ -1,4 +1,3 @@
-
 import React, { useState } from "react";
 import { useAuth } from "@/contexts/AuthContext";
 import { Navbar } from "@/components/Navbar";
@@ -11,6 +10,7 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { useToast } from "@/components/ui/use-toast";
 import { Plus, Clock, Calendar, BookOpen, MapPin } from "lucide-react";
+import AddLectureDialog, { Class } from "@/components/AddLectureDialog";
 
 // Define Class data type
 interface Class {
@@ -105,17 +105,10 @@ const Timetable = () => {
   const { toast } = useToast();
   const [classes, setClasses] = useState<Class[]>(initialClasses);
   const [currentClass, setCurrentClass] = useState("CS-301");
-  // Manage the new class state for form
-  const [newClass, setNewClass] = useState<Omit<Class, "id">>({
-    day: "Monday",
-    startTime: "",
-    endTime: "",
-    subject: "",
-    room: "",
-    class: "CS-301"
-  });
 
   const filteredClasses = classes.filter(cls => cls.class === currentClass);
+
+  const canEdit = user?.role === "admin" || user?.role === "faculty";
 
   /**
    * Converts "hh:mm" (24hr) to "hh:mm AM/PM"
@@ -135,72 +128,6 @@ const Timetable = () => {
     return start1 < end2 && start2 < end1;
   }
 
-  /**
-   * Handle lecture add:
-   * - Validate fields
-   * - Check for slot conflicts for same class/day
-   * - If all good, add to state and show toast
-   */
-  const handleAddClass = () => {
-    if (!newClass.subject || !newClass.room || !newClass.startTime || !newClass.endTime) {
-      toast({
-        title: "Error",
-        description: "Please fill in all required fields",
-        variant: "destructive",
-      });
-      return;
-    }
-    if (newClass.endTime <= newClass.startTime) {
-      toast({
-        title: "Invalid Time Slot",
-        description: "End time must be after start time.",
-        variant: "destructive",
-      });
-      return;
-    }
-    // Conflict checking for custom input time fields
-    const conflict = classes.find(cls =>
-      cls.day === newClass.day &&
-      cls.class === newClass.class &&
-      isTimeOverlap(
-        newClass.startTime, newClass.endTime,
-        cls.startTime.length === 5 ? cls.startTime : "",
-        cls.endTime.length === 5 ? cls.endTime : ""
-      )
-    );
-    if (conflict) {
-      toast({
-        title: "Time Slot Conflict",
-        description: `There is already a class scheduled for ${newClass.day} at this time slot.`,
-        variant: "destructive",
-      });
-      return;
-    }
-
-    const newClassWithId: Class = {
-      ...newClass,
-      id: `${classes.length + 1}`,
-      startTime: formatTimeToString(newClass.startTime),
-      endTime: formatTimeToString(newClass.endTime),
-    };
-
-    setClasses(prev => [...prev, newClassWithId]);
-    toast({
-      title: "Class Added",
-      description: `${newClass.subject} has been added to the timetable`,
-    });
-
-    setNewClass({
-      ...newClass,
-      subject: "",
-      room: "",
-      startTime: "",
-      endTime: ""
-    });
-  };
-
-  const canEdit = user?.role === "admin" || user?.role === "faculty";
-
   return (
     <div className="min-h-screen bg-gray-50">
       <Navbar />
@@ -210,107 +137,14 @@ const Timetable = () => {
             <h1 className="text-2xl font-bold">Class Timetable</h1>
             <p className="text-gray-600">View and manage class schedules</p>
           </div>
-          {canEdit && (
-            <div className="mt-4 sm:mt-0">
-              <Dialog>
-                <DialogTrigger asChild>
-                  <Button className="flex items-center gap-1">
-                    <Plus className="h-4 w-4" />
-                    Add Class
-                  </Button>
-                </DialogTrigger>
-                <DialogContent>
-                  <DialogHeader>
-                    <DialogTitle>Add New Class</DialogTitle>
-                  </DialogHeader>
-                  {/* The modal for adding a new lecture: only custom Start/End time fields! */}
-                  <div className="space-y-4 py-4">
-                    <div className="grid grid-cols-2 gap-4">
-                      <div className="space-y-2">
-                        <Label htmlFor="day">Day</Label>
-                        <Select
-                          value={newClass.day}
-                          onValueChange={(value) => setNewClass({ ...newClass, day: value })}
-                        >
-                          <SelectTrigger>
-                            <SelectValue placeholder="Select" />
-                          </SelectTrigger>
-                          <SelectContent>
-                            {daysOfWeek.map(day => (
-                              <SelectItem key={day} value={day}>{day}</SelectItem>
-                            ))}
-                          </SelectContent>
-                        </Select>
-                      </div>
-                      <div className="space-y-2">
-                        <Label htmlFor="class">Class</Label>
-                        <Select
-                          value={newClass.class}
-                          onValueChange={(value) => setNewClass({ ...newClass, class: value })}
-                        >
-                          <SelectTrigger>
-                            <SelectValue placeholder="Select" />
-                          </SelectTrigger>
-                          <SelectContent>
-                            <SelectItem value="CS-301">CS-301</SelectItem>
-                            <SelectItem value="IT-501">IT-501</SelectItem>
-                            <SelectItem value="EC-101">EC-101</SelectItem>
-                          </SelectContent>
-                        </Select>
-                      </div>
-                    </div>
-                    <div className="grid grid-cols-2 gap-4">
-                      {/* Start Time: custom input */}
-                      <div className="space-y-2">
-                        <Label htmlFor="startTime">Start Time</Label>
-                        <Input
-                          id="startTime"
-                          type="time"
-                          value={newClass.startTime}
-                          onChange={e => setNewClass({ ...newClass, startTime: e.target.value })}
-                          step="300"
-                          placeholder="Start Time"
-                        />
-                      </div>
-                      {/* End Time: custom input */}
-                      <div className="space-y-2">
-                        <Label htmlFor="endTime">End Time</Label>
-                        <Input
-                          id="endTime"
-                          type="time"
-                          value={newClass.endTime}
-                          onChange={e => setNewClass({ ...newClass, endTime: e.target.value })}
-                          step="300"
-                          placeholder="End Time"
-                        />
-                      </div>
-                    </div>
-                    <div className="space-y-2">
-                      <Label htmlFor="subject">Subject Name</Label>
-                      <Input
-                        id="subject"
-                        value={newClass.subject}
-                        onChange={(e) => setNewClass({ ...newClass, subject: e.target.value })}
-                        placeholder="e.g., Data Structures"
-                      />
-                    </div>
-                    <div className="space-y-2">
-                      <Label htmlFor="room">Room/Lab</Label>
-                      <Input
-                        id="room"
-                        value={newClass.room}
-                        onChange={(e) => setNewClass({ ...newClass, room: e.target.value })}
-                        placeholder="e.g., Room 204"
-                      />
-                    </div>
-                    <Button className="w-full mt-4" onClick={handleAddClass}>
-                      <Plus className="mr-2 h-4 w-4" /> Add to Timetable
-                    </Button>
-                  </div>
-                </DialogContent>
-              </Dialog>
-            </div>
-          )}
+          <div className="mt-4 sm:mt-0">
+            <AddLectureDialog
+              classes={classes}
+              setClasses={setClasses}
+              currentClass={currentClass}
+              canEdit={canEdit}
+            />
+          </div>
         </div>
         <Card className="animate-scale-in">
           <CardHeader>
@@ -365,9 +199,12 @@ const Timetable = () => {
                   <h3 className="text-lg font-medium mb-1">No Classes Scheduled</h3>
                   <p>There are no classes scheduled for this class yet.</p>
                   {canEdit && (
-                    <Button className="mt-4" variant="outline" onClick={() => document.querySelector<HTMLButtonElement>('[data-dialog-trigger="true"]')?.click()}>
-                      <Plus className="mr-2 h-4 w-4" /> Add Class
-                    </Button>
+                    <AddLectureDialog
+                      classes={classes}
+                      setClasses={setClasses}
+                      currentClass={currentClass}
+                      canEdit={canEdit}
+                    />
                   )}
                 </div>
               )}
@@ -380,4 +217,3 @@ const Timetable = () => {
 };
 
 export default Timetable;
-
