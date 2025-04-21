@@ -83,13 +83,15 @@ export const Navbar = () => {
                     Faculty
                   </Button>
                 )}
-                <Button
-                  variant="ghost"
-                  className="justify-start"
-                  onClick={() => navigate("/attendance")}
-                >
-                  Attendance
-                </Button>
+                {user?.role === "student" && (
+                  <Button
+                    variant="ghost"
+                    className="justify-start"
+                    onClick={() => navigate("/attendance")}
+                  >
+                    Attendance
+                  </Button>
+                )}
               </div>
             </SheetContent>
           </Sheet>
@@ -136,12 +138,14 @@ export const Navbar = () => {
             </Button>
           )}
           
-          <Button
-            variant="ghost"
-            onClick={() => navigate("/attendance")}
-          >
-            Attendance
-          </Button>
+          {user?.role === "student" && (
+            <Button
+              variant="ghost"
+              onClick={() => navigate("/attendance")}
+            >
+              Attendance
+            </Button>
+          )}
         </div>
 
         <div className="flex items-center gap-2">
@@ -165,3 +169,4 @@ export const Navbar = () => {
     </nav>
   );
 };
+
