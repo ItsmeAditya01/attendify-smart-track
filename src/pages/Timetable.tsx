@@ -1,3 +1,4 @@
+
 import React, { useState } from "react";
 import { useAuth } from "@/contexts/AuthContext";
 import { Navbar } from "@/components/Navbar";
@@ -11,6 +12,7 @@ import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { useToast } from "@/components/ui/use-toast";
 import { Plus, Clock, Calendar, BookOpen, MapPin } from "lucide-react";
 
+// Define Class data type
 interface Class {
   id: string;
   day: string;
@@ -22,13 +24,6 @@ interface Class {
 }
 
 const daysOfWeek = ["Monday", "Tuesday", "Wednesday", "Thursday", "Friday", "Saturday"];
-const timeSlots = [
-  "09:00 AM - 10:30 AM",
-  "10:45 AM - 12:15 PM",
-  "01:00 PM - 02:30 PM",
-  "02:45 PM - 04:15 PM",
-  "04:30 PM - 06:00 PM"
-];
 
 const initialClasses: Class[] = [
   {
@@ -110,6 +105,7 @@ const Timetable = () => {
   const { toast } = useToast();
   const [classes, setClasses] = useState<Class[]>(initialClasses);
   const [currentClass, setCurrentClass] = useState("CS-301");
+  // Manage the new class state for form
   const [newClass, setNewClass] = useState<Omit<Class, "id">>({
     day: "Monday",
     startTime: "",
@@ -121,20 +117,30 @@ const Timetable = () => {
 
   const filteredClasses = classes.filter(cls => cls.class === currentClass);
 
+  /**
+   * Converts "hh:mm" (24hr) to "hh:mm AM/PM"
+   */
   function formatTimeToString(time24: string): string {
     if (!time24) return "";
-    const [h,m] = time24.split(':');
+    const [h, m] = time24.split(':');
     let hh = Number(h), ampm = "AM";
     if (hh === 0) hh = 12;
     else if (hh === 12) ampm = "PM";
     else if (hh > 12) { hh -= 12; ampm = "PM"; }
-    return `${String(hh).padStart(2,"0")}:${m} ${ampm}`;
+    return `${String(hh).padStart(2, "0")}:${m} ${ampm}`;
   }
 
-  function isTimeOverlap(start1:string, end1:string, start2:string, end2:string) {
+  // Utility: Time overlap checking, for conflict detection
+  function isTimeOverlap(start1: string, end1: string, start2: string, end2: string) {
     return start1 < end2 && start2 < end1;
   }
 
+  /**
+   * Handle lecture add:
+   * - Validate fields
+   * - Check for slot conflicts for same class/day
+   * - If all good, add to state and show toast
+   */
   const handleAddClass = () => {
     if (!newClass.subject || !newClass.room || !newClass.startTime || !newClass.endTime) {
       toast({
@@ -152,6 +158,7 @@ const Timetable = () => {
       });
       return;
     }
+    // Conflict checking for custom input time fields
     const conflict = classes.find(cls =>
       cls.day === newClass.day &&
       cls.class === newClass.class &&
@@ -216,13 +223,14 @@ const Timetable = () => {
                   <DialogHeader>
                     <DialogTitle>Add New Class</DialogTitle>
                   </DialogHeader>
+                  {/* The modal for adding a new lecture: only custom Start/End time fields! */}
                   <div className="space-y-4 py-4">
                     <div className="grid grid-cols-2 gap-4">
                       <div className="space-y-2">
                         <Label htmlFor="day">Day</Label>
-                        <Select 
+                        <Select
                           value={newClass.day}
-                          onValueChange={(value) => setNewClass({...newClass, day: value})}
+                          onValueChange={(value) => setNewClass({ ...newClass, day: value })}
                         >
                           <SelectTrigger>
                             <SelectValue placeholder="Select" />
@@ -236,9 +244,9 @@ const Timetable = () => {
                       </div>
                       <div className="space-y-2">
                         <Label htmlFor="class">Class</Label>
-                        <Select 
+                        <Select
                           value={newClass.class}
-                          onValueChange={(value) => setNewClass({...newClass, class: value})}
+                          onValueChange={(value) => setNewClass({ ...newClass, class: value })}
                         >
                           <SelectTrigger>
                             <SelectValue placeholder="Select" />
@@ -252,24 +260,26 @@ const Timetable = () => {
                       </div>
                     </div>
                     <div className="grid grid-cols-2 gap-4">
+                      {/* Start Time: custom input */}
                       <div className="space-y-2">
                         <Label htmlFor="startTime">Start Time</Label>
                         <Input
                           id="startTime"
                           type="time"
                           value={newClass.startTime}
-                          onChange={e => setNewClass({...newClass, startTime: e.target.value})}
+                          onChange={e => setNewClass({ ...newClass, startTime: e.target.value })}
                           step="300"
                           placeholder="Start Time"
                         />
                       </div>
+                      {/* End Time: custom input */}
                       <div className="space-y-2">
                         <Label htmlFor="endTime">End Time</Label>
                         <Input
                           id="endTime"
                           type="time"
                           value={newClass.endTime}
-                          onChange={e => setNewClass({...newClass, endTime: e.target.value})}
+                          onChange={e => setNewClass({ ...newClass, endTime: e.target.value })}
                           step="300"
                           placeholder="End Time"
                         />
@@ -277,19 +287,19 @@ const Timetable = () => {
                     </div>
                     <div className="space-y-2">
                       <Label htmlFor="subject">Subject Name</Label>
-                      <Input 
-                        id="subject" 
+                      <Input
+                        id="subject"
                         value={newClass.subject}
-                        onChange={(e) => setNewClass({...newClass, subject: e.target.value})}
+                        onChange={(e) => setNewClass({ ...newClass, subject: e.target.value })}
                         placeholder="e.g., Data Structures"
                       />
                     </div>
                     <div className="space-y-2">
                       <Label htmlFor="room">Room/Lab</Label>
-                      <Input 
+                      <Input
                         id="room"
                         value={newClass.room}
-                        onChange={(e) => setNewClass({...newClass, room: e.target.value})}
+                        onChange={(e) => setNewClass({ ...newClass, room: e.target.value })}
                         placeholder="e.g., Room 204"
                       />
                     </div>
@@ -326,7 +336,7 @@ const Timetable = () => {
                           <div className="md:w-1/4 flex items-center gap-2 mb-2 md:mb-0">
                             <Clock className="h-4 w-4 text-attendance-primary" />
                             <span>
-                              {cls.startTime.length === 5 ? formatTimeToString(cls.startTime) : cls.startTime} - 
+                              {cls.startTime.length === 5 ? formatTimeToString(cls.startTime) : cls.startTime} -
                               {cls.endTime.length === 5 ? formatTimeToString(cls.endTime) : cls.endTime}
                             </span>
                           </div>
@@ -370,3 +380,4 @@ const Timetable = () => {
 };
 
 export default Timetable;
+
