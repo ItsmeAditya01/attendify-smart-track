@@ -12,17 +12,6 @@ import { useToast } from "@/components/ui/use-toast";
 import { Plus, Clock, Calendar, BookOpen, MapPin } from "lucide-react";
 import AddLectureDialog, { Class } from "@/components/AddLectureDialog";
 
-// Define Class data type
-interface Class {
-  id: string;
-  day: string;
-  startTime: string;
-  endTime: string;
-  subject: string;
-  room: string;
-  class: string;
-}
-
 const daysOfWeek = ["Monday", "Tuesday", "Wednesday", "Thursday", "Friday", "Saturday"];
 
 const initialClasses: Class[] = [
