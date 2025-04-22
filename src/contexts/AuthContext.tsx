@@ -1,3 +1,4 @@
+
 import React, { createContext, useContext, useState, useEffect } from "react";
 import { supabase } from "@/integrations/supabase/client";
 
@@ -36,6 +37,20 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
   const [user, setUser] = useState<User | null>(null);
   const [isAuthenticated, setIsAuthenticated] = useState<boolean>(false);
 
+  // Helper function to convert Supabase profile to our User type
+  const mapProfileToUser = (profile: any): User => {
+    return {
+      id: profile.id,
+      name: profile.name,
+      email: profile.email,
+      role: profile.role as UserRole, // Type assertion to UserRole
+      enrollmentNumber: profile.enrollment_number || undefined,
+      semester: profile.semester || undefined,
+      branch: profile.branch || undefined,
+      class: profile.class || undefined,
+    };
+  };
+
   useEffect(() => {
     // Set up auth state listener
     const { data: { subscription } } = supabase.auth.onAuthStateChange(
@@ -48,7 +63,7 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
             .single();
 
           if (profile) {
-            setUser(profile);
+            setUser(mapProfileToUser(profile));
             setIsAuthenticated(true);
           }
         } else {
@@ -68,7 +83,7 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
           .single();
 
         if (profile) {
-          setUser(profile);
+          setUser(mapProfileToUser(profile));
           setIsAuthenticated(true);
         }
       }
