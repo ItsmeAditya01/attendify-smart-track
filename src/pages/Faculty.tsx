@@ -18,7 +18,7 @@ interface Faculty {
   id: string;
   name: string;
   email: string;
-  phone: string;
+  phone: string | null;
   department: string;
   subjects: string[];
   user_id: string;
@@ -185,6 +185,8 @@ const Faculty = () => {
       });
       return;
     }
+    
+    // Add the new faculty to the state correctly with proper typing
     setFaculty(prev => [
       ...prev,
       {
@@ -195,8 +197,9 @@ const Faculty = () => {
         department: data.department,
         subjects: data.subjects || [],
         user_id: data.user_id,
-      }
+      } as Faculty
     ]);
+    
     toast({
       title: "Faculty Added",
       description: `${newFaculty.name} has been added successfully`,
