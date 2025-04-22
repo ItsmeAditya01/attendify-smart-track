@@ -1,4 +1,3 @@
-
 import React, { useEffect, useState } from "react";
 import { useAuth } from "@/contexts/AuthContext";
 import { Navbar } from "@/components/Navbar";
@@ -14,6 +13,8 @@ import { Label } from "@/components/ui/label";
 import { Plus, Search, UserPlus, UserMinus } from "lucide-react";
 import { useToast } from "@/components/ui/use-toast";
 import { supabase } from "@/integrations/supabase/client";
+import { AddStudentDialog } from "@/components/students/AddStudentDialog";
+import { StudentTable } from "@/components/students/StudentTable";
 
 interface Student {
   id: string;
@@ -44,7 +45,6 @@ const Students = () => {
   const [loading, setLoading] = useState(true);
   const [addLoading, setAddLoading] = useState(false);
 
-  // Fetch students from database
   useEffect(() => {
     if (!user) return;
     setLoading(true);
@@ -60,7 +60,6 @@ const Students = () => {
           });
           setStudents([]);
         } else if (data) {
-          // Optionally calculate attendance % elsewhere
           setStudents(
             data.map((row: any) => ({
               id: row.id,
@@ -70,7 +69,7 @@ const Students = () => {
               semester: row.semester,
               branch: row.branch,
               class: row.class,
-              attendance: 100, // Use actual attendance logic here as enhancement
+              attendance: 100,
             }))
           );
         }
@@ -106,7 +105,6 @@ const Students = () => {
 
   const handleDeleteSelected = async () => {
     if (selectedStudents.length === 0) return;
-    // Delete from Supabase
     const { error } = await supabase
       .from("students")
       .delete()
@@ -174,7 +172,7 @@ const Students = () => {
         semester: data.semester,
         branch: data.branch,
         class: data.class,
-        attendance: 100 // Default for new student
+        attendance: 100
       }
     ]);
 
@@ -193,7 +191,6 @@ const Students = () => {
     });
   };
 
-  // Only admin and faculty can access this page
   if (user?.role === "student") {
     return (
       <div className="min-h-screen bg-gray-50">
@@ -231,106 +228,55 @@ const Students = () => {
                 Delete ({selectedStudents.length})
               </Button>
             )}
-            <Dialog>
-              <DialogTrigger asChild>
-                <Button className="flex items-center gap-1">
-                  <UserPlus className="h-4 w-4" />
-                  Add Student
-                </Button>
-              </DialogTrigger>
-              <DialogContent>
-                <DialogHeader>
-                  <DialogTitle>Add New Student</DialogTitle>
-                </DialogHeader>
-                <div className="space-y-4 py-4">
-                  <div className="space-y-2">
-                    <Label htmlFor="name">Full Name</Label>
-                    <Input
-                      id="name"
-                      value={newStudent.name}
-                      onChange={(e) => setNewStudent({ ...newStudent, name: e.target.value })}
-                    />
-                  </div>
-                  <div className="space-y-2">
-                    <Label htmlFor="email">Email</Label>
-                    <Input
-                      id="email"
-                      type="email"
-                      value={newStudent.email}
-                      onChange={(e) => setNewStudent({ ...newStudent, email: e.target.value })}
-                    />
-                  </div>
-                  <div className="space-y-2">
-                    <Label htmlFor="enrollmentNumber">Enrollment Number</Label>
-                    <Input
-                      id="enrollmentNumber"
-                      value={newStudent.enrollmentNumber}
-                      onChange={(e) => setNewStudent({ ...newStudent, enrollmentNumber: e.target.value })}
-                    />
-                  </div>
-                  <div className="grid grid-cols-2 gap-4">
-                    <div className="space-y-2">
-                      <Label htmlFor="semester">Semester</Label>
-                      <Select
-                        value={newStudent.semester}
-                        onValueChange={(value) => setNewStudent({ ...newStudent, semester: value })}
-                      >
-                        <SelectTrigger>
-                          <SelectValue placeholder="Select" />
-                        </SelectTrigger>
-                        <SelectContent>
-                          <SelectItem value="1st">1st</SelectItem>
-                          <SelectItem value="2nd">2nd</SelectItem>
-                          <SelectItem value="3rd">3rd</SelectItem>
-                          <SelectItem value="4th">4th</SelectItem>
-                          <SelectItem value="5th">5th</SelectItem>
-                          <SelectItem value="6th">6th</SelectItem>
-                          <SelectItem value="7th">7th</SelectItem>
-                          <SelectItem value="8th">8th</SelectItem>
-                        </SelectContent>
-                      </Select>
-                    </div>
-                    <div className="space-y-2">
-                      <Label htmlFor="branch">Branch</Label>
-                      <Select
-                        value={newStudent.branch}
-                        onValueChange={(value) => setNewStudent({ ...newStudent, branch: value })}
-                      >
-                        <SelectTrigger>
-                          <SelectValue placeholder="Select" />
-                        </SelectTrigger>
-                        <SelectContent>
-                          <SelectItem value="Computer Science">Computer Science</SelectItem>
-                          <SelectItem value="Information Technology">Information Technology</SelectItem>
-                          <SelectItem value="Electronics">Electronics</SelectItem>
-                          <SelectItem value="Mechanical">Mechanical</SelectItem>
-                          <SelectItem value="Civil">Civil</SelectItem>
-                        </SelectContent>
-                      </Select>
-                    </div>
-                  </div>
-                  <div className="space-y-2">
-                    <Label htmlFor="class">Class</Label>
-                    <Select
-                      value={newStudent.class}
-                      onValueChange={(value) => setNewStudent({ ...newStudent, class: value })}
-                    >
-                      <SelectTrigger>
-                        <SelectValue placeholder="Select" />
-                      </SelectTrigger>
-                      <SelectContent>
-                        <SelectItem value="CS-301">CS-301</SelectItem>
-                        <SelectItem value="IT-501">IT-501</SelectItem>
-                        <SelectItem value="EC-101">EC-101</SelectItem>
-                      </SelectContent>
-                    </Select>
-                  </div>
-                  <Button className="w-full mt-4" onClick={handleAddStudent} disabled={addLoading}>
-                    <Plus className="mr-2 h-4 w-4" /> {addLoading ? "Adding..." : "Add Student"}
-                  </Button>
-                </div>
-              </DialogContent>
-            </Dialog>
+            <AddStudentDialog
+              onAddStudent={async (studentData) => {
+                setAddLoading(true);
+                const { data, error } = await supabase
+                  .from("students")
+                  .insert({
+                    name: studentData.name,
+                    email: studentData.email,
+                    enrollment_number: studentData.enrollmentNumber,
+                    semester: studentData.semester,
+                    branch: studentData.branch,
+                    class: studentData.class,
+                    user_id: user.id,
+                  })
+                  .select()
+                  .single();
+
+                setAddLoading(false);
+
+                if (error) {
+                  toast({
+                    title: "Failed to add",
+                    description: error.message,
+                    variant: "destructive",
+                  });
+                  return;
+                }
+
+                setStudents(prev => [
+                  ...prev,
+                  {
+                    id: data.id,
+                    name: data.name,
+                    email: data.email,
+                    enrollmentNumber: data.enrollment_number,
+                    semester: data.semester,
+                    branch: data.branch,
+                    class: data.class,
+                    attendance: 100
+                  }
+                ]);
+
+                toast({
+                  title: "Student Added",
+                  description: `${studentData.name} has been added successfully`,
+                });
+              }}
+              addLoading={addLoading}
+            />
           </div>
         </div>
         <div className="mb-6 animate-fade-in">
@@ -356,74 +302,13 @@ const Students = () => {
             </Tabs>
           </CardHeader>
           <CardContent className="p-4">
-            <div className="rounded-md border overflow-hidden">
-              <Table>
-                <TableHeader>
-                  <TableRow>
-                    <TableHead className="w-12">
-                      <Checkbox
-                        checked={selectedStudents.length === filteredStudents.length && filteredStudents.length > 0}
-                        onCheckedChange={handleSelectAll}
-                      />
-                    </TableHead>
-                    <TableHead>Name</TableHead>
-                    <TableHead className="hidden md:table-cell">Email</TableHead>
-                    <TableHead className="hidden lg:table-cell">Enrollment</TableHead>
-                    <TableHead className="hidden lg:table-cell">Semester</TableHead>
-                    <TableHead className="hidden md:table-cell">Branch</TableHead>
-                    <TableHead>Class</TableHead>
-                    <TableHead>Attendance</TableHead>
-                  </TableRow>
-                </TableHeader>
-                <TableBody>
-                  {loading ? (
-                    <TableRow>
-                      <TableCell colSpan={8} className="text-center py-6 text-muted-foreground">
-                        Loading students...
-                      </TableCell>
-                    </TableRow>
-                  ) : filteredStudents.length === 0 ? (
-                    <TableRow>
-                      <TableCell colSpan={8} className="text-center py-6 text-muted-foreground">
-                        No students found
-                      </TableCell>
-                    </TableRow>
-                  ) : (
-                    filteredStudents.map((student) => (
-                      <TableRow key={student.id}>
-                        <TableCell>
-                          <Checkbox
-                            checked={selectedStudents.includes(student.id)}
-                            onCheckedChange={() => handleSelectStudent(student.id)}
-                          />
-                        </TableCell>
-                        <TableCell className="font-medium">{student.name}</TableCell>
-                        <TableCell className="hidden md:table-cell">{student.email}</TableCell>
-                        <TableCell className="hidden lg:table-cell">{student.enrollmentNumber}</TableCell>
-                        <TableCell className="hidden lg:table-cell">{student.semester}</TableCell>
-                        <TableCell className="hidden md:table-cell">{student.branch}</TableCell>
-                        <TableCell>
-                          <span className="bg-attendance-light text-attendance-primary px-2 py-1 rounded text-xs">
-                            {student.class}
-                          </span>
-                        </TableCell>
-                        <TableCell>
-                          <span className={`px-2 py-1 rounded text-xs ${
-                            student.attendance >= 90
-                              ? "bg-green-100 text-green-700"
-                              : student.attendance >= 75
-                                ? "bg-yellow-100 text-yellow-700"
-                                : "bg-red-100 text-red-700"
-                          }`}>
-                            {student.attendance}%
-                          </span>
-                        </TableCell>
-                      </TableRow>
-                    ))
-                  )}
-                </TableBody>
-              </Table>
-            </div>
+            <StudentTable
+              students={filteredStudents}
+              loading={loading}
+              selectedStudents={selectedStudents}
+              onSelectStudent={handleSelectStudent}
+              onSelectAll={handleSelectAll}
+            />
           </CardContent>
         </Card>
       </main>
