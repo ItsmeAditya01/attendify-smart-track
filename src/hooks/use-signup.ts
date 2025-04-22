@@ -29,7 +29,9 @@ export const useSignup = () => {
       return;
     }
 
-    if (userData.role === "student" && (!userData.enrollmentNumber || !userData.semester || !userData.branch || !userData.class)) {
+    // Only validate student fields if role is student
+    if (userData.role === "student" && 
+        (!userData.enrollmentNumber || !userData.semester || !userData.branch || !userData.class)) {
       toast({
         title: "Error",
         description: "Please fill in all student details",
@@ -41,31 +43,29 @@ export const useSignup = () => {
     try {
       setSigningUp(true);
       
-      // For student role, ensure all required fields are included
-      const signupData: Partial<{
-        name: string;
-        email: string;
-        role: UserRole;
-        enrollmentNumber?: string;
-        semester?: string;
-        branch?: string;
-        class?: string;
-      }> = {
+      console.log("Starting signup with data:", {
         name: userData.name,
         email: userData.email,
         role: userData.role,
-      };
+        ...(userData.role === "student" && {
+          enrollmentNumber: userData.enrollmentNumber,
+          semester: userData.semester,
+          branch: userData.branch,
+          class: userData.class,
+        })
+      });
       
-      // Only add student-specific fields for student role
-      if (userData.role === "student") {
-        signupData.enrollmentNumber = userData.enrollmentNumber;
-        signupData.semester = userData.semester;
-        signupData.branch = userData.branch;
-        signupData.class = userData.class;
-      }
-      
-      console.log("Sending signup data:", signupData);
-      await signup(signupData, userData.password);
+      await signup({
+        name: userData.name,
+        email: userData.email,
+        role: userData.role,
+        ...(userData.role === "student" ? {
+          enrollmentNumber: userData.enrollmentNumber,
+          semester: userData.semester,
+          branch: userData.branch,
+          class: userData.class,
+        } : {})
+      }, userData.password);
       
       toast({
         title: "Success",

@@ -21,7 +21,7 @@ interface AuthContextType {
   login: (email: string, password: string, role: UserRole) => Promise<void>;
   signup: (userData: Partial<User>, password: string) => Promise<void>;
   logout: () => void;
-  isLoading: boolean; // Added loading state for auth operations
+  isLoading: boolean;
 }
 
 const AuthContext = createContext<AuthContextType | undefined>(undefined);
@@ -37,7 +37,7 @@ export const useAuth = () => {
 export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children }) => {
   const [user, setUser] = useState<User | null>(null);
   const [isAuthenticated, setIsAuthenticated] = useState<boolean>(false);
-  const [isLoading, setIsLoading] = useState<boolean>(true); // Track initial loading
+  const [isLoading, setIsLoading] = useState<boolean>(true);
 
   // Helper function to convert Supabase profile to our User type
   const mapProfileToUser = (profile: any): User => {
@@ -120,13 +120,13 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
     try {
       setIsLoading(true);
       
-      // Convert camelCase to snake_case for Supabase metadata
+      // Create metadata for signup
       const metaData: Record<string, any> = {
-        name: userData.name,
-        role: userData.role,
+        name: userData.name || '',
+        role: userData.role || 'student',
       };
       
-      // Only include student-specific fields if role is student and they exist
+      // Only include student-specific fields if role is student
       if (userData.role === 'student') {
         if (userData.enrollmentNumber) metaData.enrollment_number = userData.enrollmentNumber;
         if (userData.semester) metaData.semester = userData.semester;
@@ -136,7 +136,7 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
 
       console.log("Signing up with metadata:", metaData);
       
-      const { error } = await supabase.auth.signUp({
+      const { error, data } = await supabase.auth.signUp({
         email: userData.email || '',
         password,
         options: {
@@ -148,6 +148,8 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
         console.error("Supabase signup error:", error);
         throw error;
       }
+      
+      console.log("Signup successful:", data);
     } finally {
       // Don't set isLoading to false here - the onAuthStateChange will handle that
     }
