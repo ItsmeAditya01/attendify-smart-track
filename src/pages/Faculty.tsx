@@ -14,12 +14,15 @@ import { Plus, Search, UserPlus, UserMinus, Mail, Phone } from "lucide-react";
 import { useToast } from "@/components/ui/use-toast";
 import { supabase } from "@/integrations/supabase/client";
 
+// Define the allowed department values based on the Supabase enum
+type DepartmentType = "Computer Science" | "Information Technology" | "Electronics" | "Mechanical" | "Civil";
+
 interface Faculty {
   id: string;
   name: string;
   email: string;
   phone: string | null;
-  department: string;
+  department: DepartmentType;
   subjects: string[];
   user_id: string;
 }
@@ -34,7 +37,7 @@ const Faculty = () => {
     name: "",
     email: "",
     phone: "",
-    department: "",
+    department: "Computer Science", // Set a default value that matches the enum
     subjects: [],
   });
   const [newSubject, setNewSubject] = useState("");
@@ -62,7 +65,7 @@ const Faculty = () => {
           name: row.name || "",
           email: row.email || "",
           phone: row.phone || "",
-          department: row.department || "",
+          department: row.department || "Computer Science",
           subjects: row.subjects || [],
           user_id: row.user_id,
         })));
@@ -209,7 +212,7 @@ const Faculty = () => {
       name: "",
       email: "",
       phone: "",
-      department: "",
+      department: "Computer Science",
       subjects: [],
     });
     setNewSubject("");
@@ -295,7 +298,7 @@ const Faculty = () => {
                     <Label htmlFor="department">Department</Label>
                     <Select
                       value={newFaculty.department}
-                      onValueChange={(value) => setNewFaculty({ ...newFaculty, department: value })}
+                      onValueChange={(value: DepartmentType) => setNewFaculty({ ...newFaculty, department: value })}
                     >
                       <SelectTrigger>
                         <SelectValue placeholder="Select" />
