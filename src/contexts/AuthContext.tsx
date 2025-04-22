@@ -119,20 +119,23 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
   const signup = async (userData: Partial<User>, password: string) => {
     try {
       setIsLoading(true);
-      // Convert any undefined values to null for Supabase metadata
+      
+      // Convert camelCase to snake_case for Supabase metadata
       const metaData: Record<string, any> = {
         name: userData.name,
         role: userData.role,
       };
       
-      // Only include student-specific fields if role is student
+      // Only include student-specific fields if role is student and they exist
       if (userData.role === 'student') {
-        metaData.enrollment_number = userData.enrollmentNumber || '';
-        metaData.semester = userData.semester || '';
-        metaData.branch = userData.branch || '';
-        metaData.class = userData.class || '';
+        if (userData.enrollmentNumber) metaData.enrollment_number = userData.enrollmentNumber;
+        if (userData.semester) metaData.semester = userData.semester;
+        if (userData.branch) metaData.branch = userData.branch;
+        if (userData.class) metaData.class = userData.class;
       }
 
+      console.log("Signing up with metadata:", metaData);
+      
       const { error } = await supabase.auth.signUp({
         email: userData.email || '',
         password,
@@ -141,7 +144,10 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
         },
       });
 
-      if (error) throw error;
+      if (error) {
+        console.error("Supabase signup error:", error);
+        throw error;
+      }
     } finally {
       // Don't set isLoading to false here - the onAuthStateChange will handle that
     }

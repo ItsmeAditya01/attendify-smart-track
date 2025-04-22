@@ -41,17 +41,31 @@ export const useSignup = () => {
     try {
       setSigningUp(true);
       
-      // Now just pass the user data directly to the signup function
-      // The formatting for Supabase is handled in the AuthContext
-      await signup({
+      // For student role, ensure all required fields are included
+      const signupData: Partial<{
+        name: string;
+        email: string;
+        role: UserRole;
+        enrollmentNumber?: string;
+        semester?: string;
+        branch?: string;
+        class?: string;
+      }> = {
         name: userData.name,
         email: userData.email,
         role: userData.role,
-        enrollmentNumber: userData.enrollmentNumber,
-        semester: userData.semester,
-        branch: userData.branch,
-        class: userData.class
-      }, userData.password);
+      };
+      
+      // Only add student-specific fields for student role
+      if (userData.role === "student") {
+        signupData.enrollmentNumber = userData.enrollmentNumber;
+        signupData.semester = userData.semester;
+        signupData.branch = userData.branch;
+        signupData.class = userData.class;
+      }
+      
+      console.log("Sending signup data:", signupData);
+      await signup(signupData, userData.password);
       
       toast({
         title: "Success",
