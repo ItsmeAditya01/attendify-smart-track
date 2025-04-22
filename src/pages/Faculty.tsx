@@ -2,52 +2,28 @@
 import React, { useEffect, useState } from "react";
 import { useAuth } from "@/contexts/AuthContext";
 import { Navbar } from "@/components/Navbar";
-import { Button } from "@/components/ui/button";
-import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
-import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
-import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger } from "@/components/ui/dialog";
-import { Label } from "@/components/ui/label";
-import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
-import { Checkbox } from "@/components/ui/checkbox";
-import { Plus, Search, UserPlus, UserMinus, Mail, Phone } from "lucide-react";
+import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
+import { Search } from "lucide-react";
 import { useToast } from "@/components/ui/use-toast";
 import { supabase } from "@/integrations/supabase/client";
+import { Faculty, DepartmentType } from "@/components/faculty/types";
+import { FacultyAddDialog } from "@/components/faculty/FacultyAddDialog";
+import { FacultyTable } from "@/components/faculty/FacultyTable";
 
-// Define the allowed department values based on the Supabase enum
-type DepartmentType = "Computer Science" | "Information Technology" | "Electronics" | "Mechanical" | "Civil";
-
-interface Faculty {
-  id: string;
-  name: string;
-  email: string;
-  phone: string | null;
-  department: DepartmentType;
-  subjects: string[];
-  user_id: string;
-}
-
-const Faculty = () => {
+const FacultyPage = () => {
   const { user } = useAuth();
   const { toast } = useToast();
   const [faculty, setFaculty] = useState<Faculty[]>([]);
   const [searchTerm, setSearchTerm] = useState("");
   const [selectedFaculty, setSelectedFaculty] = useState<string[]>([]);
-  const [newFaculty, setNewFaculty] = useState<Omit<Faculty, "id" | "user_id">>({
-    name: "",
-    email: "",
-    phone: "",
-    department: "Computer Science", // Set a default value that matches the enum
-    subjects: [],
-  });
-  const [newSubject, setNewSubject] = useState("");
   const [loading, setLoading] = useState(true);
+  const [addLoading, setAddLoading] = useState(false);
 
   // Fetch faculty from Supabase
   useEffect(() => {
     const fetchFaculty = async () => {
       setLoading(true);
-      // Fetch all rows from faculty table (lowercase)
       const { data, error } = await supabase
         .from("faculty")
         .select("*")
@@ -60,6 +36,7 @@ const Faculty = () => {
         });
         setFaculty([]);
       } else {
+        // Only map the fields we use; ignore records that lack needed keys.
         setFaculty((data ?? []).map((row: any) => ({
           id: row.id,
           name: row.name || "",
@@ -75,7 +52,6 @@ const Faculty = () => {
     fetchFaculty();
   }, [toast]);
 
-  // Filter faculty based on search
   const filteredFaculty = faculty.filter(f =>
     f.name.toLowerCase().includes(searchTerm.toLowerCase()) ||
     f.email.toLowerCase().includes(searchTerm.toLowerCase()) ||
@@ -100,7 +76,6 @@ const Faculty = () => {
 
   const handleDeleteSelected = async () => {
     if (selectedFaculty.length === 0) return;
-    // Note: Use lowercase "faculty" table name to match what's in the database
     const { error } = await supabase
       .from("faculty")
       .delete()
@@ -122,52 +97,17 @@ const Faculty = () => {
     setSelectedFaculty([]);
   };
 
-  const handleAddSubject = () => {
-    if (!newSubject.trim()) return;
-    if (newFaculty.subjects.includes(newSubject)) {
-      toast({
-        title: "Subject already added",
-        description: "This subject is already in the list",
-        variant: "destructive",
-      });
-      return;
-    }
-    setNewFaculty({
-      ...newFaculty,
-      subjects: [...newFaculty.subjects, newSubject],
-    });
-    setNewSubject("");
-  };
-
-  const handleRemoveSubject = (subject: string) => {
-    setNewFaculty({
-      ...newFaculty,
-      subjects: newFaculty.subjects.filter(s => s !== subject),
-    });
-  };
-
-  const handleAddFaculty = async () => {
-    if (
-      !newFaculty.name ||
-      !newFaculty.email ||
-      !newFaculty.department
-    ) {
-      toast({
-        title: "Error",
-        description: "Please fill in all required fields",
-        variant: "destructive",
-      });
-      return;
-    }
+  const handleAddFaculty = async (newFaculty: Omit<Faculty, "id" | "user_id">) => {
+    setAddLoading(true);
     if (!user?.id) {
       toast({
         title: "No user detected",
         description: "You must be logged in to add faculty",
         variant: "destructive",
       });
-      return;
+      setAddLoading(false);
+      return false;
     }
-    // Insert all fields to faculty table (lowercase)
     const { data, error } = await supabase
       .from("faculty")
       .insert({
@@ -181,16 +121,16 @@ const Faculty = () => {
       .select()
       .single();
 
+    setAddLoading(false);
+
     if (error) {
       toast({
         title: "Failed to add",
         description: error.message,
         variant: "destructive",
       });
-      return;
+      return false;
     }
-    
-    // Add the new faculty to the state correctly with proper typing
     setFaculty(prev => [
       ...prev,
       {
@@ -201,21 +141,13 @@ const Faculty = () => {
         department: data.department,
         subjects: data.subjects || [],
         user_id: data.user_id,
-      } as Faculty
+      } as Faculty,
     ]);
-    
     toast({
       title: "Faculty Added",
       description: `${newFaculty.name} has been added successfully`,
     });
-    setNewFaculty({
-      name: "",
-      email: "",
-      phone: "",
-      department: "Computer Science",
-      subjects: [],
-    });
-    setNewSubject("");
+    return true;
   };
 
   // Only admin can access this page
@@ -243,111 +175,7 @@ const Faculty = () => {
             <p className="text-gray-600">Manage faculty members</p>
           </div>
           <div className="mt-4 sm:mt-0 flex gap-2">
-            {selectedFaculty.length > 0 && (
-              <Button
-                variant="destructive"
-                size="sm"
-                onClick={handleDeleteSelected}
-                className="flex items-center gap-1"
-              >
-                <UserMinus className="h-4 w-4" />
-                Delete ({selectedFaculty.length})
-              </Button>
-            )}
-            <Dialog>
-              <DialogTrigger asChild>
-                <Button className="flex items-center gap-1">
-                  <UserPlus className="h-4 w-4" />
-                  Add Faculty
-                </Button>
-              </DialogTrigger>
-              <DialogContent>
-                <DialogHeader>
-                  <DialogTitle>Add New Faculty</DialogTitle>
-                </DialogHeader>
-                <div className="space-y-4 py-4">
-                  <div className="space-y-2">
-                    <Label htmlFor="name">Full Name</Label>
-                    <Input
-                      id="name"
-                      value={newFaculty.name}
-                      onChange={(e) => setNewFaculty({ ...newFaculty, name: e.target.value })}
-                      placeholder="Dr. John Smith"
-                    />
-                  </div>
-                  <div className="space-y-2">
-                    <Label htmlFor="email">Email</Label>
-                    <Input
-                      id="email"
-                      type="email"
-                      value={newFaculty.email}
-                      onChange={(e) => setNewFaculty({ ...newFaculty, email: e.target.value })}
-                      placeholder="john.smith@example.com"
-                    />
-                  </div>
-                  <div className="space-y-2">
-                    <Label htmlFor="phone">Phone</Label>
-                    <Input
-                      id="phone"
-                      value={newFaculty.phone}
-                      onChange={(e) => setNewFaculty({ ...newFaculty, phone: e.target.value })}
-                      placeholder="555-123-4567"
-                    />
-                  </div>
-                  <div className="space-y-2">
-                    <Label htmlFor="department">Department</Label>
-                    <Select
-                      value={newFaculty.department}
-                      onValueChange={(value: DepartmentType) => setNewFaculty({ ...newFaculty, department: value })}
-                    >
-                      <SelectTrigger>
-                        <SelectValue placeholder="Select" />
-                      </SelectTrigger>
-                      <SelectContent>
-                        <SelectItem value="Computer Science">Computer Science</SelectItem>
-                        <SelectItem value="Information Technology">Information Technology</SelectItem>
-                        <SelectItem value="Electronics">Electronics</SelectItem>
-                        <SelectItem value="Mechanical">Mechanical</SelectItem>
-                        <SelectItem value="Civil">Civil</SelectItem>
-                      </SelectContent>
-                    </Select>
-                  </div>
-                  <div className="space-y-2">
-                    <Label>Subjects</Label>
-                    <div className="flex gap-2">
-                      <Input
-                        value={newSubject}
-                        onChange={(e) => setNewSubject(e.target.value)}
-                        placeholder="Add a subject"
-                      />
-                      <Button type="button" onClick={handleAddSubject} size="sm">
-                        <Plus className="h-4 w-4" />
-                      </Button>
-                    </div>
-                    {newFaculty.subjects.length > 0 && (
-                      <div className="mt-2 space-y-1">
-                        {newFaculty.subjects.map(subject => (
-                          <div key={subject} className="flex items-center justify-between bg-gray-50 p-2 rounded">
-                            <span>{subject}</span>
-                            <Button
-                              variant="ghost"
-                              size="sm"
-                              onClick={() => handleRemoveSubject(subject)}
-                              className="h-6 w-6 p-0"
-                            >
-                              <UserMinus className="h-4 w-4" />
-                            </Button>
-                          </div>
-                        ))}
-                      </div>
-                    )}
-                  </div>
-                  <Button className="w-full mt-4" onClick={handleAddFaculty}>
-                    <Plus className="mr-2 h-4 w-4" /> Add Faculty
-                  </Button>
-                </div>
-              </DialogContent>
-            </Dialog>
+            <FacultyAddDialog onAdd={handleAddFaculty} isLoading={addLoading} />
           </div>
         </div>
         <div className="mb-6 animate-fade-in">
@@ -368,81 +196,14 @@ const Faculty = () => {
             </CardTitle>
           </CardHeader>
           <CardContent>
-            <div className="rounded-md border overflow-hidden">
-              <Table>
-                <TableHeader>
-                  <TableRow>
-                    <TableHead className="w-12">
-                      <Checkbox
-                        checked={selectedFaculty.length === filteredFaculty.length && filteredFaculty.length > 0}
-                        onCheckedChange={handleSelectAll}
-                      />
-                    </TableHead>
-                    <TableHead>Name</TableHead>
-                    <TableHead className="hidden md:table-cell">Email</TableHead>
-                    <TableHead className="hidden lg:table-cell">Phone</TableHead>
-                    <TableHead>Department</TableHead>
-                    <TableHead className="hidden lg:table-cell">Subjects</TableHead>
-                  </TableRow>
-                </TableHeader>
-                <TableBody>
-                  {loading ? (
-                    <TableRow>
-                      <TableCell colSpan={6} className="text-center py-6 text-muted-foreground">
-                        Loading faculty...
-                      </TableCell>
-                    </TableRow>
-                  ) : filteredFaculty.length === 0 ? (
-                    <TableRow>
-                      <TableCell colSpan={6} className="text-center py-6 text-muted-foreground">
-                        No faculty members found
-                      </TableCell>
-                    </TableRow>
-                  ) : (
-                    filteredFaculty.map((fac) => (
-                      <TableRow key={fac.id}>
-                        <TableCell>
-                          <Checkbox
-                            checked={selectedFaculty.includes(fac.id)}
-                            onCheckedChange={() => handleSelectFaculty(fac.id)}
-                          />
-                        </TableCell>
-                        <TableCell className="font-medium">{fac.name}</TableCell>
-                        <TableCell className="hidden md:table-cell">
-                          <div className="flex items-center gap-2">
-                            <Mail className="h-4 w-4 text-attendance-primary" />
-                            {fac.email}
-                          </div>
-                        </TableCell>
-                        <TableCell className="hidden lg:table-cell">
-                          <div className="flex items-center gap-2">
-                            <Phone className="h-4 w-4 text-attendance-secondary" />
-                            {fac.phone}
-                          </div>
-                        </TableCell>
-                        <TableCell>
-                          <span className="bg-attendance-light text-attendance-primary px-2 py-1 rounded text-xs">
-                            {fac.department}
-                          </span>
-                        </TableCell>
-                        <TableCell className="hidden lg:table-cell">
-                          <div className="flex flex-wrap gap-1">
-                            {fac.subjects.map(subject => (
-                              <span
-                                key={subject}
-                                className="bg-gray-100 text-gray-700 px-2 py-0.5 rounded-full text-xs"
-                              >
-                                {subject}
-                              </span>
-                            ))}
-                          </div>
-                        </TableCell>
-                      </TableRow>
-                    ))
-                  )}
-                </TableBody>
-              </Table>
-            </div>
+            <FacultyTable
+              facultyList={filteredFaculty}
+              loading={loading}
+              selectedFaculty={selectedFaculty}
+              onSelectFaculty={handleSelectFaculty}
+              onSelectAll={handleSelectAll}
+              onDeleteSelected={handleDeleteSelected}
+            />
           </CardContent>
         </Card>
       </main>
@@ -450,4 +211,4 @@ const Faculty = () => {
   );
 };
 
-export default Faculty;
+export default FacultyPage;
