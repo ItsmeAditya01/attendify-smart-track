@@ -183,6 +183,11 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
       }
       
       console.log("Signup successful:", data);
+
+      // If student role, ensure we wait a moment for the database trigger to do its work
+      if (userData.role === 'student') {
+        await new Promise(resolve => setTimeout(resolve, 500));
+      }
     } finally {
       // Don't set isLoading to false here - the onAuthStateChange will handle that
     }

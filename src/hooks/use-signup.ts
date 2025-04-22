@@ -45,32 +45,16 @@ export const useSignup = () => {
       
       console.log("Starting signup process with data:", userData);
       
-      // Prepare data object based on role
-      const signupData: Partial<{
-        name: string;
-        email: string;
-        role: UserRole;
-        enrollmentNumber?: string;
-        semester?: string;
-        branch?: string;
-        class?: string;
-      }> = {
+      // Format student data to match what the server expects
+      await signup({
         name: userData.name,
         email: userData.email,
         role: userData.role,
-      };
-      
-      // Add student-specific fields only if the role is student
-      if (userData.role === "student") {
-        signupData.enrollmentNumber = userData.enrollmentNumber;
-        signupData.semester = userData.semester;
-        signupData.branch = userData.branch;
-        signupData.class = userData.class;
-      }
-      
-      console.log("Sending signup data to auth context:", signupData);
-      
-      await signup(signupData, userData.password);
+        enrollmentNumber: userData.role === "student" ? userData.enrollmentNumber : undefined,
+        semester: userData.role === "student" ? userData.semester : undefined,
+        branch: userData.role === "student" ? userData.branch : undefined,
+        class: userData.role === "student" ? userData.class : undefined,
+      }, userData.password);
       
       toast({
         title: "Success",
