@@ -41,31 +41,16 @@ export const useSignup = () => {
     try {
       setSigningUp(true);
       
-      // Format the metadata correctly for Supabase
-      // This is critical for the profiles table constraints
-      const metaData: Record<string, any> = {
-        name: userData.name,
-        role: userData.role,
-      };
-      
-      // Only include student-specific fields if role is student
-      if (userData.role === 'student') {
-        metaData.enrollment_number = userData.enrollmentNumber;
-        metaData.semester = userData.semester;
-        metaData.branch = userData.branch;
-        metaData.class = userData.class;
-      }
-      
+      // Now just pass the user data directly to the signup function
+      // The formatting for Supabase is handled in the AuthContext
       await signup({
         name: userData.name,
         email: userData.email,
         role: userData.role,
-        ...(userData.role === 'student' ? {
-          enrollmentNumber: userData.enrollmentNumber,
-          semester: userData.semester,
-          branch: userData.branch,
-          class: userData.class
-        } : {})
+        enrollmentNumber: userData.enrollmentNumber,
+        semester: userData.semester,
+        branch: userData.branch,
+        class: userData.class
       }, userData.password);
       
       toast({
