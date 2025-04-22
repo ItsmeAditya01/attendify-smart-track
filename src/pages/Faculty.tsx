@@ -44,9 +44,9 @@ const Faculty = () => {
   useEffect(() => {
     const fetchFaculty = async () => {
       setLoading(true);
-      // Fetch all rows from Faculty table
+      // Fetch all rows from faculty table (lowercase)
       const { data, error } = await supabase
-        .from("Faculty")
+        .from("faculty")
         .select("*")
         .order("created_at", { ascending: true });
       if (error) {
@@ -97,8 +97,9 @@ const Faculty = () => {
 
   const handleDeleteSelected = async () => {
     if (selectedFaculty.length === 0) return;
+    // Note: Use lowercase "faculty" table name to match what's in the database
     const { error } = await supabase
-      .from("Faculty")
+      .from("faculty")
       .delete()
       .in("id", selectedFaculty);
 
@@ -163,9 +164,9 @@ const Faculty = () => {
       });
       return;
     }
-    // Insert all fields to Faculty table
+    // Insert all fields to faculty table (lowercase)
     const { data, error } = await supabase
-      .from("Faculty")
+      .from("faculty")
       .insert({
         name: newFaculty.name,
         email: newFaculty.email,
