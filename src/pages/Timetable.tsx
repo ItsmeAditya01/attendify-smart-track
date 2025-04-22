@@ -1,4 +1,4 @@
-import React, { useState } from "react";
+import React, { useState, useEffect } from "react";
 import { useAuth } from "@/contexts/AuthContext";
 import { Navbar } from "@/components/Navbar";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
@@ -11,91 +11,34 @@ import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { useToast } from "@/components/ui/use-toast";
 import { Plus, Clock, Calendar, BookOpen, MapPin } from "lucide-react";
 import AddLectureDialog, { Class } from "@/components/AddLectureDialog";
+import { supabase } from "@/integrations/supabase/client";
 
 const daysOfWeek = ["Monday", "Tuesday", "Wednesday", "Thursday", "Friday", "Saturday"];
-
-const initialClasses: Class[] = [
-  {
-    id: "1",
-    day: "Monday",
-    startTime: "09:00 AM",
-    endTime: "10:30 AM",
-    subject: "Data Structures",
-    room: "Room 204",
-    class: "CS-301"
-  },
-  {
-    id: "2",
-    day: "Monday",
-    startTime: "10:45 AM",
-    endTime: "12:15 PM",
-    subject: "Database Systems",
-    room: "Lab 3",
-    class: "CS-301"
-  },
-  {
-    id: "3",
-    day: "Tuesday",
-    startTime: "09:00 AM",
-    endTime: "10:30 AM",
-    subject: "Computer Networks",
-    room: "Room 105",
-    class: "CS-301"
-  },
-  {
-    id: "4",
-    day: "Wednesday",
-    startTime: "01:00 PM",
-    endTime: "02:30 PM",
-    subject: "Operating Systems",
-    room: "Lab 1",
-    class: "CS-301"
-  },
-  {
-    id: "5",
-    day: "Thursday",
-    startTime: "02:45 PM",
-    endTime: "04:15 PM",
-    subject: "Software Engineering",
-    room: "Room 302",
-    class: "CS-301"
-  },
-  {
-    id: "6",
-    day: "Monday",
-    startTime: "01:00 PM",
-    endTime: "02:30 PM",
-    subject: "Data Analytics",
-    room: "Lab 4",
-    class: "IT-501"
-  },
-  {
-    id: "7",
-    day: "Tuesday",
-    startTime: "10:45 AM",
-    endTime: "12:15 PM",
-    subject: "Cloud Computing",
-    room: "Room 201",
-    class: "IT-501"
-  },
-  {
-    id: "8",
-    day: "Thursday",
-    startTime: "09:00 AM",
-    endTime: "10:30 AM",
-    subject: "Mobile App Development",
-    room: "Lab 2",
-    class: "IT-501"
-  }
-];
 
 const Timetable = () => {
   const { user } = useAuth();
   const { toast } = useToast();
-  const [classes, setClasses] = useState<Class[]>(initialClasses);
+  const [classes, setClasses] = useState<any[]>([]);
+  const [timetable, setTimetable] = useState<any[]>([]);
   const [currentClass, setCurrentClass] = useState("CS-301");
 
-  const filteredClasses = classes.filter(cls => cls.class === currentClass);
+  useEffect(() => {
+    async function fetchClasses() {
+      const { data, error } = await supabase.from("classes").select("*");
+      if (!error && data) setClasses(data);
+    }
+    fetchClasses();
+  }, []);
+
+  useEffect(() => {
+    async function fetchTimetable() {
+      const { data, error } = await supabase.from("timetable").select("*");
+      if (!error && data) setTimetable(data);
+    }
+    fetchTimetable();
+  }, []);
+
+  const filteredClasses = timetable.filter(cls => cls.class === currentClass);
 
   const canEdit = user?.role === "admin" || user?.role === "faculty";
 

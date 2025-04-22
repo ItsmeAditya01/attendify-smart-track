@@ -1,104 +1,20 @@
 
-import React, { useState } from "react";
+import React, { useEffect, useState } from "react";
 import { useAuth } from "@/contexts/AuthContext";
 import { Navbar } from "@/components/Navbar";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
-import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
+import { Tabs, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Checkbox } from "@/components/ui/checkbox";
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger } from "@/components/ui/dialog";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Label } from "@/components/ui/label";
-import { Plus, Search, UserPlus, X, Check, UserMinus, Edit } from "lucide-react";
+import { Plus, Search, UserPlus, UserMinus } from "lucide-react";
 import { useToast } from "@/components/ui/use-toast";
+import { supabase } from "@/integrations/supabase/client";
 
-// Mock student data
-const initialStudents = [
-  {
-    id: "1",
-    name: "John Doe",
-    email: "john.doe@example.com",
-    enrollmentNumber: "EN12001",
-    semester: "3rd",
-    branch: "Computer Science",
-    class: "CS-301",
-    attendance: 92
-  },
-  {
-    id: "2",
-    name: "Jane Smith",
-    email: "jane.smith@example.com",
-    enrollmentNumber: "EN12002",
-    semester: "3rd",
-    branch: "Computer Science",
-    class: "CS-301",
-    attendance: 88
-  },
-  {
-    id: "3",
-    name: "Michael Johnson",
-    email: "michael.j@example.com",
-    enrollmentNumber: "EN12003",
-    semester: "3rd",
-    branch: "Computer Science",
-    class: "CS-301",
-    attendance: 76
-  },
-  {
-    id: "4",
-    name: "Emily Davis",
-    email: "emily.d@example.com",
-    enrollmentNumber: "EN12004",
-    semester: "3rd",
-    branch: "Computer Science",
-    class: "CS-301",
-    attendance: 94
-  },
-  {
-    id: "5",
-    name: "Robert Wilson",
-    email: "robert.w@example.com",
-    enrollmentNumber: "EN12005",
-    semester: "5th",
-    branch: "Information Technology",
-    class: "IT-501",
-    attendance: 82
-  },
-  {
-    id: "6",
-    name: "Sarah Brown",
-    email: "sarah.b@example.com",
-    enrollmentNumber: "EN12006",
-    semester: "5th",
-    branch: "Information Technology",
-    class: "IT-501",
-    attendance: 90
-  },
-  {
-    id: "7",
-    name: "David Lee",
-    email: "david.l@example.com",
-    enrollmentNumber: "EN12007",
-    semester: "5th",
-    branch: "Information Technology",
-    class: "IT-501",
-    attendance: 85
-  },
-  {
-    id: "8",
-    name: "Lisa Taylor",
-    email: "lisa.t@example.com",
-    enrollmentNumber: "EN12008",
-    semester: "1st",
-    branch: "Electronics",
-    class: "EC-101",
-    attendance: 79
-  }
-];
-
-// Types
 interface Student {
   id: string;
   name: string;
@@ -113,7 +29,7 @@ interface Student {
 const Students = () => {
   const { user } = useAuth();
   const { toast } = useToast();
-  const [students, setStudents] = useState<Student[]>(initialStudents);
+  const [students, setStudents] = useState<Student[]>([]);
   const [searchTerm, setSearchTerm] = useState("");
   const [selectedStudents, setSelectedStudents] = useState<string[]>([]);
   const [newStudent, setNewStudent] = useState<Omit<Student, "id" | "attendance">>({
@@ -125,22 +41,57 @@ const Students = () => {
     class: ""
   });
   const [currentTab, setCurrentTab] = useState("all");
+  const [loading, setLoading] = useState(true);
+  const [addLoading, setAddLoading] = useState(false);
 
-  // Filter students based on search and current tab
+  // Fetch students from database
+  useEffect(() => {
+    if (!user) return;
+    setLoading(true);
+    supabase
+      .from("students")
+      .select("*")
+      .then(async ({ data, error }) => {
+        if (error) {
+          toast({
+            title: "Error loading students",
+            description: error.message,
+            variant: "destructive",
+          });
+          setStudents([]);
+        } else if (data) {
+          // Optionally calculate attendance % elsewhere
+          setStudents(
+            data.map((row: any) => ({
+              id: row.id,
+              name: row.name,
+              email: row.email,
+              enrollmentNumber: row.enrollment_number,
+              semester: row.semester,
+              branch: row.branch,
+              class: row.class,
+              attendance: 100, // Use actual attendance logic here as enhancement
+            }))
+          );
+        }
+        setLoading(false);
+      });
+  }, [user, toast]);
+
   const filteredStudents = students.filter(student => {
-    const matchesSearch = 
+    const matchesSearch =
       student.name.toLowerCase().includes(searchTerm.toLowerCase()) ||
       student.email.toLowerCase().includes(searchTerm.toLowerCase()) ||
       student.enrollmentNumber.toLowerCase().includes(searchTerm.toLowerCase());
-    
+
     if (currentTab === "all") return matchesSearch;
     return matchesSearch && student.class === currentTab;
   });
 
   const handleSelectStudent = (studentId: string) => {
-    setSelectedStudents(prev => 
-      prev.includes(studentId) 
-        ? prev.filter(id => id !== studentId) 
+    setSelectedStudents(prev =>
+      prev.includes(studentId)
+        ? prev.filter(id => id !== studentId)
         : [...prev, studentId]
     );
   };
@@ -153,9 +104,23 @@ const Students = () => {
     }
   };
 
-  const handleDeleteSelected = () => {
+  const handleDeleteSelected = async () => {
     if (selectedStudents.length === 0) return;
-    
+    // Delete from Supabase
+    const { error } = await supabase
+      .from("students")
+      .delete()
+      .in("id", selectedStudents);
+
+    if (error) {
+      toast({
+        title: "Failed to delete students",
+        description: error.message,
+        variant: "destructive",
+      });
+      return;
+    }
+
     setStudents(prev => prev.filter(student => !selectedStudents.includes(student.id)));
     toast({
       title: "Students Deleted",
@@ -164,9 +129,8 @@ const Students = () => {
     setSelectedStudents([]);
   };
 
-  const handleAddStudent = () => {
-    // Simple validation
-    if (!newStudent.name || !newStudent.email || !newStudent.enrollmentNumber) {
+  const handleAddStudent = async () => {
+    if (!newStudent.name || !newStudent.email || !newStudent.enrollmentNumber || !newStudent.semester || !newStudent.branch || !newStudent.class) {
       toast({
         title: "Error",
         description: "Please fill in all required fields",
@@ -174,20 +138,51 @@ const Students = () => {
       });
       return;
     }
+    setAddLoading(true);
+    const { data, error } = await supabase
+      .from("students")
+      .insert({
+        name: newStudent.name,
+        email: newStudent.email,
+        enrollment_number: newStudent.enrollmentNumber,
+        semester: newStudent.semester,
+        branch: newStudent.branch,
+        class: newStudent.class,
+        user_id: user.id,
+      })
+      .select()
+      .single();
 
-    const newStudentWithId: Student = {
-      ...newStudent,
-      id: `${students.length + 1}`,
-      attendance: 100 // New student starts with perfect attendance
-    };
+    setAddLoading(false);
 
-    setStudents(prev => [...prev, newStudentWithId]);
+    if (error) {
+      toast({
+        title: "Failed to add",
+        description: error.message,
+        variant: "destructive",
+      });
+      return;
+    }
+
+    setStudents(prev => [
+      ...prev,
+      {
+        id: data.id,
+        name: data.name,
+        email: data.email,
+        enrollmentNumber: data.enrollment_number,
+        semester: data.semester,
+        branch: data.branch,
+        class: data.class,
+        attendance: 100 // Default for new student
+      }
+    ]);
+
     toast({
       title: "Student Added",
       description: `${newStudent.name} has been added successfully`,
     });
 
-    // Reset form
     setNewStudent({
       name: "",
       email: "",
@@ -213,7 +208,6 @@ const Students = () => {
     );
   }
 
-  // Group students by class for the tabs
   const classes = [...new Set(students.map(s => s.class))];
 
   return (
@@ -225,12 +219,11 @@ const Students = () => {
             <h1 className="text-2xl font-bold">Student Management</h1>
             <p className="text-gray-600">Manage and track students</p>
           </div>
-          
           <div className="mt-4 sm:mt-0 flex gap-2">
             {selectedStudents.length > 0 && (
-              <Button 
-                variant="destructive" 
-                size="sm" 
+              <Button
+                variant="destructive"
+                size="sm"
                 onClick={handleDeleteSelected}
                 className="flex items-center gap-1"
               >
@@ -238,7 +231,6 @@ const Students = () => {
                 Delete ({selectedStudents.length})
               </Button>
             )}
-            
             <Dialog>
               <DialogTrigger asChild>
                 <Button className="flex items-center gap-1">
@@ -253,38 +245,35 @@ const Students = () => {
                 <div className="space-y-4 py-4">
                   <div className="space-y-2">
                     <Label htmlFor="name">Full Name</Label>
-                    <Input 
-                      id="name" 
+                    <Input
+                      id="name"
                       value={newStudent.name}
-                      onChange={(e) => setNewStudent({...newStudent, name: e.target.value})}
+                      onChange={(e) => setNewStudent({ ...newStudent, name: e.target.value })}
                     />
                   </div>
-                  
                   <div className="space-y-2">
                     <Label htmlFor="email">Email</Label>
-                    <Input 
-                      id="email" 
+                    <Input
+                      id="email"
                       type="email"
                       value={newStudent.email}
-                      onChange={(e) => setNewStudent({...newStudent, email: e.target.value})}
+                      onChange={(e) => setNewStudent({ ...newStudent, email: e.target.value })}
                     />
                   </div>
-                  
                   <div className="space-y-2">
                     <Label htmlFor="enrollmentNumber">Enrollment Number</Label>
-                    <Input 
+                    <Input
                       id="enrollmentNumber"
                       value={newStudent.enrollmentNumber}
-                      onChange={(e) => setNewStudent({...newStudent, enrollmentNumber: e.target.value})}
+                      onChange={(e) => setNewStudent({ ...newStudent, enrollmentNumber: e.target.value })}
                     />
                   </div>
-                  
                   <div className="grid grid-cols-2 gap-4">
                     <div className="space-y-2">
                       <Label htmlFor="semester">Semester</Label>
-                      <Select 
+                      <Select
                         value={newStudent.semester}
-                        onValueChange={(value) => setNewStudent({...newStudent, semester: value})}
+                        onValueChange={(value) => setNewStudent({ ...newStudent, semester: value })}
                       >
                         <SelectTrigger>
                           <SelectValue placeholder="Select" />
@@ -301,12 +290,11 @@ const Students = () => {
                         </SelectContent>
                       </Select>
                     </div>
-                    
                     <div className="space-y-2">
                       <Label htmlFor="branch">Branch</Label>
-                      <Select 
+                      <Select
                         value={newStudent.branch}
-                        onValueChange={(value) => setNewStudent({...newStudent, branch: value})}
+                        onValueChange={(value) => setNewStudent({ ...newStudent, branch: value })}
                       >
                         <SelectTrigger>
                           <SelectValue placeholder="Select" />
@@ -321,12 +309,11 @@ const Students = () => {
                       </Select>
                     </div>
                   </div>
-                  
                   <div className="space-y-2">
                     <Label htmlFor="class">Class</Label>
-                    <Select 
+                    <Select
                       value={newStudent.class}
-                      onValueChange={(value) => setNewStudent({...newStudent, class: value})}
+                      onValueChange={(value) => setNewStudent({ ...newStudent, class: value })}
                     >
                       <SelectTrigger>
                         <SelectValue placeholder="Select" />
@@ -338,16 +325,14 @@ const Students = () => {
                       </SelectContent>
                     </Select>
                   </div>
-                  
-                  <Button className="w-full mt-4" onClick={handleAddStudent}>
-                    <Plus className="mr-2 h-4 w-4" /> Add Student
+                  <Button className="w-full mt-4" onClick={handleAddStudent} disabled={addLoading}>
+                    <Plus className="mr-2 h-4 w-4" /> {addLoading ? "Adding..." : "Add Student"}
                   </Button>
                 </div>
               </DialogContent>
             </Dialog>
           </div>
         </div>
-        
         <div className="mb-6 animate-fade-in">
           <div className="relative">
             <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 text-gray-400 h-4 w-4" />
@@ -359,7 +344,6 @@ const Students = () => {
             />
           </div>
         </div>
-        
         <Card className="animate-scale-in">
           <CardHeader className="p-4 pb-0">
             <Tabs defaultValue="all" onValueChange={setCurrentTab}>
@@ -377,7 +361,7 @@ const Students = () => {
                 <TableHeader>
                   <TableRow>
                     <TableHead className="w-12">
-                      <Checkbox 
+                      <Checkbox
                         checked={selectedStudents.length === filteredStudents.length && filteredStudents.length > 0}
                         onCheckedChange={handleSelectAll}
                       />
@@ -392,7 +376,13 @@ const Students = () => {
                   </TableRow>
                 </TableHeader>
                 <TableBody>
-                  {filteredStudents.length === 0 ? (
+                  {loading ? (
+                    <TableRow>
+                      <TableCell colSpan={8} className="text-center py-6 text-muted-foreground">
+                        Loading students...
+                      </TableCell>
+                    </TableRow>
+                  ) : filteredStudents.length === 0 ? (
                     <TableRow>
                       <TableCell colSpan={8} className="text-center py-6 text-muted-foreground">
                         No students found
@@ -402,7 +392,7 @@ const Students = () => {
                     filteredStudents.map((student) => (
                       <TableRow key={student.id}>
                         <TableCell>
-                          <Checkbox 
+                          <Checkbox
                             checked={selectedStudents.includes(student.id)}
                             onCheckedChange={() => handleSelectStudent(student.id)}
                           />
@@ -419,11 +409,11 @@ const Students = () => {
                         </TableCell>
                         <TableCell>
                           <span className={`px-2 py-1 rounded text-xs ${
-                            student.attendance >= 90 
-                              ? "bg-green-100 text-green-700" 
-                              : student.attendance >= 75 
-                              ? "bg-yellow-100 text-yellow-700"
-                              : "bg-red-100 text-red-700"
+                            student.attendance >= 90
+                              ? "bg-green-100 text-green-700"
+                              : student.attendance >= 75
+                                ? "bg-yellow-100 text-yellow-700"
+                                : "bg-red-100 text-red-700"
                           }`}>
                             {student.attendance}%
                           </span>
