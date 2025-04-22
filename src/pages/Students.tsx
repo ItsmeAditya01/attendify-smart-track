@@ -48,11 +48,16 @@ const Students = () => {
   useEffect(() => {
     if (!user) return;
     setLoading(true);
+    console.log("Fetching students data for user:", user.id, "with role:", user.role);
+    
     supabase
       .from("students")
       .select("*")
       .then(async ({ data, error }) => {
+        console.log("Supabase response:", { data, error });
+        
         if (error) {
+          console.error("Error fetching students:", error);
           toast({
             title: "Error loading students",
             description: error.message,
@@ -60,6 +65,7 @@ const Students = () => {
           });
           setStudents([]);
         } else if (data) {
+          console.log("Retrieved students count:", data.length);
           setStudents(
             data.map((row: any) => ({
               id: row.id,

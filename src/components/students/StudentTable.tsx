@@ -18,6 +18,8 @@ export const StudentTable: React.FC<StudentTableProps> = ({
   onSelectStudent,
   onSelectAll
 }) => {
+  console.log("StudentTable received students:", students.length, students);
+  
   return (
     <div className="rounded-md border overflow-hidden">
       <Table>

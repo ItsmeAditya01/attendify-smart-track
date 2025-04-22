@@ -41,6 +41,7 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
 
   // Helper function to convert Supabase profile to our User type
   const mapProfileToUser = (profile: any): User => {
+    console.log("Mapping profile to user:", profile);
     return {
       id: profile.id,
       name: profile.name,
@@ -57,23 +58,38 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
     // Set up auth state listener first
     const { data: { subscription } } = supabase.auth.onAuthStateChange(
       (event, session) => {
+        console.log("Auth state changed:", event, session?.user?.id);
         if (session?.user) {
           // Use setTimeout to prevent Supabase auth deadlocks
           setTimeout(async () => {
-            const { data: profile } = await supabase
+            console.log("Fetching profile for user:", session.user.id);
+            const { data: profile, error } = await supabase
               .from('profiles')
               .select('*')
               .eq('id', session.user.id)
               .single();
 
+            if (error) {
+              console.error("Error fetching profile:", error);
+            }
+
+            console.log("Retrieved profile:", profile);
+
             if (profile) {
               // For student roles, fetch additional student data
               if (profile.role === 'student') {
-                const { data: studentData } = await supabase
+                console.log("Fetching additional student data");
+                const { data: studentData, error: studentError } = await supabase
                   .from('students')
                   .select('*')
                   .eq('user_id', session.user.id)
                   .single();
+                  
+                if (studentError) {
+                  console.error("Error fetching student data:", studentError);
+                }
+                
+                console.log("Retrieved student data:", studentData);
                   
                 if (studentData) {
                   profile.enrollment_number = studentData.enrollment_number;
@@ -83,7 +99,9 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
                 }
               }
               
-              setUser(mapProfileToUser(profile));
+              const mappedUser = mapProfileToUser(profile);
+              console.log("Setting user state:", mappedUser);
+              setUser(mappedUser);
               setIsAuthenticated(true);
             }
             setIsLoading(false);
