@@ -1,5 +1,7 @@
 import React, { useEffect, useState } from "react";
 import { useAuth } from "@/contexts/AuthContext";
+import { supabase } from "@/integrations/supabase/client";
+import { useToast } from "@/components/ui/use-toast";
 import { Navbar } from "@/components/Navbar";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
@@ -11,8 +13,6 @@ import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger } from 
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Label } from "@/components/ui/label";
 import { Plus, Search, UserPlus, UserMinus } from "lucide-react";
-import { useToast } from "@/components/ui/use-toast";
-import { supabase } from "@/integrations/supabase/client";
 import { AddStudentDialog } from "@/components/students/AddStudentDialog";
 import { StudentTable } from "@/components/students/StudentTable";
 
@@ -46,41 +46,54 @@ const Students = () => {
   const [addLoading, setAddLoading] = useState(false);
 
   useEffect(() => {
-    if (!user) return;
-    setLoading(true);
-    console.log("Fetching students data for user:", user.id, "with role:", user.role);
-    
-    supabase
-      .from("students")
-      .select("*")
-      .then(async ({ data, error }) => {
-        console.log("Supabase response:", { data, error });
-        
-        if (error) {
-          console.error("Error fetching students:", error);
-          toast({
-            title: "Error loading students",
-            description: error.message,
-            variant: "destructive",
-          });
-          setStudents([]);
-        } else if (data) {
-          console.log("Retrieved students count:", data.length);
-          setStudents(
-            data.map((row: any) => ({
-              id: row.id,
-              name: row.name,
-              email: row.email,
-              enrollmentNumber: row.enrollment_number,
-              semester: row.semester,
-              branch: row.branch,
-              class: row.class,
-              attendance: 100,
-            }))
-          );
-        }
-        setLoading(false);
+    const fetchStudents = async () => {
+      if (!user) return;
+      
+      console.log("Current user details for student fetch:", {
+        userId: user.id,
+        userRole: user.role,
+        isAuthenticated: !!user
       });
+
+      setLoading(true);
+      
+      const { data, error } = await supabase
+        .from("students")
+        .select("*")
+        .then(({ data, error }) => {
+          console.log("Detailed Supabase students fetch:", { 
+            data, 
+            error, 
+            dataLength: data?.length 
+          });
+
+          if (error) {
+            console.error("Comprehensive student fetch error:", error);
+            toast({
+              title: "Error loading students",
+              description: error.message,
+              variant: "destructive",
+            });
+            setStudents([]);
+          } else if (data) {
+            setStudents(
+              data.map((row: any) => ({
+                id: row.id,
+                name: row.name,
+                email: row.email,
+                enrollmentNumber: row.enrollment_number,
+                semester: row.semester,
+                branch: row.branch,
+                class: row.class,
+                attendance: 100,
+              }))
+            );
+          }
+          setLoading(false);
+        });
+    };
+
+    fetchStudents();
   }, [user, toast]);
 
   const filteredStudents = students.filter(student => {
