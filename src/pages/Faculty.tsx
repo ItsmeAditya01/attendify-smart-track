@@ -14,7 +14,6 @@ import { Plus, Search, UserPlus, UserMinus, Mail, Phone } from "lucide-react";
 import { useToast } from "@/components/ui/use-toast";
 import { supabase } from "@/integrations/supabase/client";
 
-// Types
 interface Faculty {
   id: string;
   name: string;
@@ -22,6 +21,7 @@ interface Faculty {
   phone: string;
   department: string;
   subjects: string[];
+  user_id: string;
 }
 
 const Faculty = () => {
@@ -30,12 +30,12 @@ const Faculty = () => {
   const [faculty, setFaculty] = useState<Faculty[]>([]);
   const [searchTerm, setSearchTerm] = useState("");
   const [selectedFaculty, setSelectedFaculty] = useState<string[]>([]);
-  const [newFaculty, setNewFaculty] = useState<Omit<Faculty, "id">>({
+  const [newFaculty, setNewFaculty] = useState<Omit<Faculty, "id" | "user_id">>({
     name: "",
     email: "",
     phone: "",
     department: "",
-    subjects: []
+    subjects: [],
   });
   const [newSubject, setNewSubject] = useState("");
   const [loading, setLoading] = useState(true);
@@ -48,7 +48,7 @@ const Faculty = () => {
       const { data, error } = await supabase
         .from("Faculty")
         .select("*")
-        .order("id", { ascending: true });
+        .order("created_at", { ascending: true });
       if (error) {
         toast({
           title: "Error loading faculty",
@@ -57,17 +57,15 @@ const Faculty = () => {
         });
         setFaculty([]);
       } else {
-        // Map Supabase rows to Faculty interface, fill in empty fields for old records
-        setFaculty(
-          (data ?? []).map((row: any) => ({
-            id: String(row.id),
-            name: row.name,
-            email: "",
-            phone: "",
-            department: "",
-            subjects: [],
-          }))
-        );
+        setFaculty((data ?? []).map((row: any) => ({
+          id: row.id,
+          name: row.name || "",
+          email: row.email || "",
+          phone: row.phone || "",
+          department: row.department || "",
+          subjects: row.subjects || [],
+          user_id: row.user_id,
+        })));
       }
       setLoading(false);
     };
@@ -99,11 +97,11 @@ const Faculty = () => {
 
   const handleDeleteSelected = async () => {
     if (selectedFaculty.length === 0) return;
-    // Remove from Supabase
     const { error } = await supabase
       .from("Faculty")
       .delete()
-      .in("id", selectedFaculty.map(Number));
+      .in("id", selectedFaculty);
+
     if (error) {
       toast({
         title: "Failed to delete",
@@ -115,7 +113,7 @@ const Faculty = () => {
     setFaculty(prev => prev.filter(f => !selectedFaculty.includes(f.id)));
     toast({
       title: "Faculty Deleted",
-      description: `${selectedFaculty.length} faculty members have been removed`,
+      description: `${selectedFaculty.length} faculty member(s) have been removed`,
     });
     setSelectedFaculty([]);
   };
@@ -132,7 +130,7 @@ const Faculty = () => {
     }
     setNewFaculty({
       ...newFaculty,
-      subjects: [...newFaculty.subjects, newSubject]
+      subjects: [...newFaculty.subjects, newSubject],
     });
     setNewSubject("");
   };
@@ -140,12 +138,16 @@ const Faculty = () => {
   const handleRemoveSubject = (subject: string) => {
     setNewFaculty({
       ...newFaculty,
-      subjects: newFaculty.subjects.filter(s => s !== subject)
+      subjects: newFaculty.subjects.filter(s => s !== subject),
     });
   };
 
   const handleAddFaculty = async () => {
-    if (!newFaculty.name) {
+    if (
+      !newFaculty.name ||
+      !newFaculty.email ||
+      !newFaculty.department
+    ) {
       toast({
         title: "Error",
         description: "Please fill in all required fields",
@@ -153,12 +155,28 @@ const Faculty = () => {
       });
       return;
     }
-    // Insert only name to Faculty table (table schema only allows 'name')
+    if (!user?.id) {
+      toast({
+        title: "No user detected",
+        description: "You must be logged in to add faculty",
+        variant: "destructive",
+      });
+      return;
+    }
+    // Insert all fields to Faculty table
     const { data, error } = await supabase
       .from("Faculty")
-      .insert({ name: newFaculty.name })
+      .insert({
+        name: newFaculty.name,
+        email: newFaculty.email,
+        phone: newFaculty.phone || null,
+        department: newFaculty.department,
+        subjects: newFaculty.subjects.length ? newFaculty.subjects : null,
+        user_id: user.id,
+      })
       .select()
       .single();
+
     if (error) {
       toast({
         title: "Failed to add",
@@ -170,12 +188,13 @@ const Faculty = () => {
     setFaculty(prev => [
       ...prev,
       {
-        id: String(data.id),
+        id: data.id,
         name: data.name,
-        email: newFaculty.email,
-        phone: newFaculty.phone,
-        department: newFaculty.department,
-        subjects: newFaculty.subjects,
+        email: data.email,
+        phone: data.phone,
+        department: data.department,
+        subjects: data.subjects || [],
+        user_id: data.user_id,
       }
     ]);
     toast({
@@ -187,7 +206,7 @@ const Faculty = () => {
       email: "",
       phone: "",
       department: "",
-      subjects: []
+      subjects: [],
     });
     setNewSubject("");
   };
