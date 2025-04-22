@@ -1,5 +1,5 @@
 
-import React, { useState } from "react";
+import React, { useEffect, useState } from "react";
 import { useAuth } from "@/contexts/AuthContext";
 import { Navbar } from "@/components/Navbar";
 import { Button } from "@/components/ui/button";
@@ -12,50 +12,7 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@
 import { Checkbox } from "@/components/ui/checkbox";
 import { Plus, Search, UserPlus, UserMinus, Mail, Phone } from "lucide-react";
 import { useToast } from "@/components/ui/use-toast";
-
-// Mock faculty data
-const initialFaculty = [
-  {
-    id: "1",
-    name: "Dr. Robert Chen",
-    email: "robert.chen@example.com",
-    phone: "555-123-4567",
-    department: "Computer Science",
-    subjects: ["Data Structures", "Algorithms"]
-  },
-  {
-    id: "2",
-    name: "Prof. Sarah Williams",
-    email: "sarah.williams@example.com",
-    phone: "555-234-5678",
-    department: "Computer Science",
-    subjects: ["Database Systems", "Web Development"]
-  },
-  {
-    id: "3",
-    name: "Dr. James Rodriguez",
-    email: "james.rodriguez@example.com",
-    phone: "555-345-6789",
-    department: "Information Technology",
-    subjects: ["Cloud Computing", "Networking"]
-  },
-  {
-    id: "4",
-    name: "Prof. Emily Parker",
-    email: "emily.parker@example.com",
-    phone: "555-456-7890",
-    department: "Information Technology",
-    subjects: ["Software Engineering", "Mobile Development"]
-  },
-  {
-    id: "5",
-    name: "Dr. Michael Zhang",
-    email: "michael.zhang@example.com",
-    phone: "555-567-8901",
-    department: "Electronics",
-    subjects: ["Circuit Design", "Digital Systems"]
-  }
-];
+import { supabase } from "@/integrations/supabase/client";
 
 // Types
 interface Faculty {
@@ -70,7 +27,7 @@ interface Faculty {
 const Faculty = () => {
   const { user } = useAuth();
   const { toast } = useToast();
-  const [faculty, setFaculty] = useState<Faculty[]>(initialFaculty);
+  const [faculty, setFaculty] = useState<Faculty[]>([]);
   const [searchTerm, setSearchTerm] = useState("");
   const [selectedFaculty, setSelectedFaculty] = useState<string[]>([]);
   const [newFaculty, setNewFaculty] = useState<Omit<Faculty, "id">>({
@@ -81,18 +38,53 @@ const Faculty = () => {
     subjects: []
   });
   const [newSubject, setNewSubject] = useState("");
+  const [loading, setLoading] = useState(true);
+
+  // Fetch faculty from Supabase
+  useEffect(() => {
+    const fetchFaculty = async () => {
+      setLoading(true);
+      // Fetch all rows from Faculty table
+      const { data, error } = await supabase
+        .from("Faculty")
+        .select("*")
+        .order("id", { ascending: true });
+      if (error) {
+        toast({
+          title: "Error loading faculty",
+          description: error.message,
+          variant: "destructive",
+        });
+        setFaculty([]);
+      } else {
+        // Map Supabase rows to Faculty interface, fill in empty fields for old records
+        setFaculty(
+          (data ?? []).map((row: any) => ({
+            id: String(row.id),
+            name: row.name,
+            email: "",
+            phone: "",
+            department: "",
+            subjects: [],
+          }))
+        );
+      }
+      setLoading(false);
+    };
+    fetchFaculty();
+  }, [toast]);
 
   // Filter faculty based on search
-  const filteredFaculty = faculty.filter(f => 
+  const filteredFaculty = faculty.filter(f =>
     f.name.toLowerCase().includes(searchTerm.toLowerCase()) ||
     f.email.toLowerCase().includes(searchTerm.toLowerCase()) ||
     f.department.toLowerCase().includes(searchTerm.toLowerCase())
   );
 
   const handleSelectFaculty = (facultyId: string) => {
-    setSelectedFaculty(prev => 
-      prev.includes(facultyId) 
-        ? prev.filter(id => id !== facultyId) 
+    setSelectedFaculty(prev =>
+      prev.includes(facultyId)
+        ? prev.filter(id => id !== facultyId)
         : [...prev, facultyId]
     );
   };
@@ -105,9 +97,21 @@ const Faculty = () => {
     }
   };
 
-  const handleDeleteSelected = () => {
+  const handleDeleteSelected = async () => {
     if (selectedFaculty.length === 0) return;
-    
+    // Remove from Supabase
+    const { error } = await supabase
+      .from("Faculty")
+      .delete()
+      .in("id", selectedFaculty.map(Number));
+    if (error) {
+      toast({
+        title: "Failed to delete",
+        description: error.message,
+        variant: "destructive",
+      });
+      return;
+    }
     setFaculty(prev => prev.filter(f => !selectedFaculty.includes(f.id)));
     toast({
       title: "Faculty Deleted",
@@ -118,7 +122,6 @@ const Faculty = () => {
 
   const handleAddSubject = () => {
     if (!newSubject.trim()) return;
-    
     if (newFaculty.subjects.includes(newSubject)) {
       toast({
         title: "Subject already added",
@@ -127,7 +130,6 @@ const Faculty = () => {
       });
       return;
     }
-    
     setNewFaculty({
       ...newFaculty,
       subjects: [...newFaculty.subjects, newSubject]
@@ -142,9 +144,8 @@ const Faculty = () => {
     });
   };
 
-  const handleAddFaculty = () => {
-    // Simple validation
-    if (!newFaculty.name || !newFaculty.email || !newFaculty.department) {
+  const handleAddFaculty = async () => {
+    if (!newFaculty.name) {
       toast({
         title: "Error",
         description: "Please fill in all required fields",
@@ -152,19 +153,35 @@ const Faculty = () => {
       });
       return;
     }
-
-    const newFacultyWithId: Faculty = {
-      ...newFaculty,
-      id: `${faculty.length + 1}`,
-    };
-
-    setFaculty(prev => [...prev, newFacultyWithId]);
+    // Insert only name to Faculty table (table schema only allows 'name')
+    const { data, error } = await supabase
+      .from("Faculty")
+      .insert({ name: newFaculty.name })
+      .select()
+      .single();
+    if (error) {
+      toast({
+        title: "Failed to add",
+        description: error.message,
+        variant: "destructive",
+      });
+      return;
+    }
+    setFaculty(prev => [
+      ...prev,
+      {
+        id: String(data.id),
+        name: data.name,
+        email: newFaculty.email,
+        phone: newFaculty.phone,
+        department: newFaculty.department,
+        subjects: newFaculty.subjects,
+      }
+    ]);
     toast({
       title: "Faculty Added",
       description: `${newFaculty.name} has been added successfully`,
     });
-
-    // Reset form
     setNewFaculty({
       name: "",
       email: "",
@@ -172,6 +189,7 @@ const Faculty = () => {
       department: "",
       subjects: []
     });
+    setNewSubject("");
   };
 
   // Only admin can access this page
@@ -198,12 +216,11 @@ const Faculty = () => {
             <h1 className="text-2xl font-bold">Faculty Management</h1>
             <p className="text-gray-600">Manage faculty members</p>
           </div>
-          
           <div className="mt-4 sm:mt-0 flex gap-2">
             {selectedFaculty.length > 0 && (
-              <Button 
-                variant="destructive" 
-                size="sm" 
+              <Button
+                variant="destructive"
+                size="sm"
                 onClick={handleDeleteSelected}
                 className="flex items-center gap-1"
               >
@@ -211,7 +228,6 @@ const Faculty = () => {
                 Delete ({selectedFaculty.length})
               </Button>
             )}
-            
             <Dialog>
               <DialogTrigger asChild>
                 <Button className="flex items-center gap-1">
@@ -226,40 +242,37 @@ const Faculty = () => {
                 <div className="space-y-4 py-4">
                   <div className="space-y-2">
                     <Label htmlFor="name">Full Name</Label>
-                    <Input 
-                      id="name" 
+                    <Input
+                      id="name"
                       value={newFaculty.name}
-                      onChange={(e) => setNewFaculty({...newFaculty, name: e.target.value})}
+                      onChange={(e) => setNewFaculty({ ...newFaculty, name: e.target.value })}
                       placeholder="Dr. John Smith"
                     />
                   </div>
-                  
                   <div className="space-y-2">
                     <Label htmlFor="email">Email</Label>
-                    <Input 
-                      id="email" 
+                    <Input
+                      id="email"
                       type="email"
                       value={newFaculty.email}
-                      onChange={(e) => setNewFaculty({...newFaculty, email: e.target.value})}
+                      onChange={(e) => setNewFaculty({ ...newFaculty, email: e.target.value })}
                       placeholder="john.smith@example.com"
                     />
                   </div>
-                  
                   <div className="space-y-2">
                     <Label htmlFor="phone">Phone</Label>
-                    <Input 
+                    <Input
                       id="phone"
                       value={newFaculty.phone}
-                      onChange={(e) => setNewFaculty({...newFaculty, phone: e.target.value})}
+                      onChange={(e) => setNewFaculty({ ...newFaculty, phone: e.target.value })}
                       placeholder="555-123-4567"
                     />
                   </div>
-                  
                   <div className="space-y-2">
                     <Label htmlFor="department">Department</Label>
-                    <Select 
+                    <Select
                       value={newFaculty.department}
-                      onValueChange={(value) => setNewFaculty({...newFaculty, department: value})}
+                      onValueChange={(value) => setNewFaculty({ ...newFaculty, department: value })}
                     >
                       <SelectTrigger>
                         <SelectValue placeholder="Select" />
@@ -273,11 +286,10 @@ const Faculty = () => {
                       </SelectContent>
                     </Select>
                   </div>
-                  
                   <div className="space-y-2">
                     <Label>Subjects</Label>
                     <div className="flex gap-2">
-                      <Input 
+                      <Input
                         value={newSubject}
                         onChange={(e) => setNewSubject(e.target.value)}
                         placeholder="Add a subject"
@@ -291,9 +303,9 @@ const Faculty = () => {
                         {newFaculty.subjects.map(subject => (
                           <div key={subject} className="flex items-center justify-between bg-gray-50 p-2 rounded">
                             <span>{subject}</span>
-                            <Button 
-                              variant="ghost" 
-                              size="sm" 
+                            <Button
+                              variant="ghost"
+                              size="sm"
                               onClick={() => handleRemoveSubject(subject)}
                               className="h-6 w-6 p-0"
                             >
@@ -304,7 +316,6 @@ const Faculty = () => {
                       </div>
                     )}
                   </div>
-                  
                   <Button className="w-full mt-4" onClick={handleAddFaculty}>
                     <Plus className="mr-2 h-4 w-4" /> Add Faculty
                   </Button>
@@ -313,7 +324,6 @@ const Faculty = () => {
             </Dialog>
           </div>
         </div>
-        
         <div className="mb-6 animate-fade-in">
           <div className="relative">
             <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 text-gray-400 h-4 w-4" />
@@ -325,10 +335,11 @@ const Faculty = () => {
             />
           </div>
         </div>
-        
         <Card className="animate-scale-in">
           <CardHeader>
-            <CardTitle>Faculty Members ({filteredFaculty.length})</CardTitle>
+            <CardTitle>
+              Faculty Members {loading ? "(Loading...)" : `(${filteredFaculty.length})`}
+            </CardTitle>
           </CardHeader>
           <CardContent>
             <div className="rounded-md border overflow-hidden">
@@ -336,7 +347,7 @@ const Faculty = () => {
                 <TableHeader>
                   <TableRow>
                     <TableHead className="w-12">
-                      <Checkbox 
+                      <Checkbox
                         checked={selectedFaculty.length === filteredFaculty.length && filteredFaculty.length > 0}
                         onCheckedChange={handleSelectAll}
                       />
@@ -349,7 +360,13 @@ const Faculty = () => {
                   </TableRow>
                 </TableHeader>
                 <TableBody>
-                  {filteredFaculty.length === 0 ? (
+                  {loading ? (
+                    <TableRow>
+                      <TableCell colSpan={6} className="text-center py-6 text-muted-foreground">
+                        Loading faculty...
+                      </TableCell>
+                    </TableRow>
+                  ) : filteredFaculty.length === 0 ? (
                     <TableRow>
                       <TableCell colSpan={6} className="text-center py-6 text-muted-foreground">
                         No faculty members found
@@ -359,7 +376,7 @@ const Faculty = () => {
                     filteredFaculty.map((fac) => (
                       <TableRow key={fac.id}>
                         <TableCell>
-                          <Checkbox 
+                          <Checkbox
                             checked={selectedFaculty.includes(fac.id)}
                             onCheckedChange={() => handleSelectFaculty(fac.id)}
                           />
@@ -385,8 +402,8 @@ const Faculty = () => {
                         <TableCell className="hidden lg:table-cell">
                           <div className="flex flex-wrap gap-1">
                             {fac.subjects.map(subject => (
-                              <span 
-                                key={subject} 
+                              <span
+                                key={subject}
                                 className="bg-gray-100 text-gray-700 px-2 py-0.5 rounded-full text-xs"
                               >
                                 {subject}
