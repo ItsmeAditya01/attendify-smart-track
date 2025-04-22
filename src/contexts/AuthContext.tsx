@@ -104,18 +104,25 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
   };
 
   const signup = async (userData: Partial<User>, password: string) => {
+    // Convert any undefined values to null for Supabase metadata
+    const metaData: Record<string, any> = {
+      name: userData.name,
+      role: userData.role,
+    };
+    
+    // Only include student-specific fields if role is student
+    if (userData.role === 'student') {
+      metaData.enrollment_number = userData.enrollmentNumber || '';
+      metaData.semester = userData.semester || '';
+      metaData.branch = userData.branch || '';
+      metaData.class = userData.class || '';
+    }
+
     const { error } = await supabase.auth.signUp({
       email: userData.email || '',
       password,
       options: {
-        data: {
-          name: userData.name,
-          role: userData.role,
-          enrollment_number: userData.enrollmentNumber,
-          semester: userData.semester,
-          branch: userData.branch,
-          class: userData.class,
-        },
+        data: metaData,
       },
     });
 

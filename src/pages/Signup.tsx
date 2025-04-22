@@ -63,28 +63,33 @@ const Signup = () => {
 
     try {
       setLoading(true);
+      // Create userData object based on role
       const userData = {
         name,
         email,
         role,
-        ...(role === "student" && {
+        // Only include student fields if role is student
+        ...(role === "student" ? {
           enrollmentNumber,
           semester,
           branch,
           class: classRoom,
-        }),
+        } : {})
       };
 
+      console.log("Signup data:", userData);
       await signup(userData, password);
+      
       toast({
         title: "Success",
         description: "Account created successfully",
       });
       navigate("/dashboard");
-    } catch (error) {
+    } catch (error: any) {
+      console.error("Signup error:", error);
       toast({
         title: "Registration Failed",
-        description: "Something went wrong. Please try again.",
+        description: error.message || "Something went wrong. Please try again.",
         variant: "destructive",
       });
     } finally {
