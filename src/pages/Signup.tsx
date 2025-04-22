@@ -1,5 +1,5 @@
 
-import React, { useState } from "react";
+import React, { useState, useEffect } from "react";
 import { Link, useNavigate } from "react-router-dom";
 import { useAuth, UserRole } from "@/contexts/AuthContext";
 import { Button } from "@/components/ui/button";
@@ -9,12 +9,13 @@ import { Label } from "@/components/ui/label";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { useToast } from "@/components/ui/use-toast";
+import { Progress } from "@/components/ui/progress";
 
 const Signup = () => {
-  const { signup } = useAuth();
+  const { signup, isAuthenticated, isLoading } = useAuth();
   const navigate = useNavigate();
   const { toast } = useToast();
-  const [loading, setLoading] = useState(false);
+  const [signingUp, setSigningUp] = useState(false);
   const [role, setRole] = useState<UserRole>("student");
   
   // Common fields
@@ -28,6 +29,13 @@ const Signup = () => {
   const [semester, setSemester] = useState("");
   const [branch, setBranch] = useState("");
   const [classRoom, setClassRoom] = useState("");
+
+  // Redirect if already authenticated
+  useEffect(() => {
+    if (isAuthenticated) {
+      navigate("/dashboard");
+    }
+  }, [isAuthenticated, navigate]);
 
   const handleSignup = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -62,7 +70,7 @@ const Signup = () => {
     }
 
     try {
-      setLoading(true);
+      setSigningUp(true);
       // Create userData object based on role
       const userData = {
         name,
@@ -84,7 +92,7 @@ const Signup = () => {
         title: "Success",
         description: "Account created successfully",
       });
-      navigate("/dashboard");
+      // We don't need to navigate, the Auth state change will handle that
     } catch (error: any) {
       console.error("Signup error:", error);
       toast({
@@ -92,10 +100,12 @@ const Signup = () => {
         description: error.message || "Something went wrong. Please try again.",
         variant: "destructive",
       });
-    } finally {
-      setLoading(false);
+      setSigningUp(false);
     }
   };
+
+  // Show loading state either from local or global auth state
+  const showLoading = signingUp || isLoading;
 
   return (
     <div className="min-h-screen flex items-center justify-center bg-gray-50 py-12 px-4 sm:px-6 lg:px-8">
@@ -108,7 +118,16 @@ const Signup = () => {
           <p className="mt-2 text-gray-600">Create your account</p>
         </div>
 
-        <Card className="animate-scale-in">
+        {showLoading && (
+          <div className="w-full">
+            <Progress value={75} className="h-1 mb-2" />
+            <p className="text-center text-sm text-muted-foreground">
+              {isLoading ? "Checking authentication..." : "Creating your account..."}
+            </p>
+          </div>
+        )}
+
+        <Card className={`animate-scale-in ${showLoading ? 'opacity-75' : ''}`}>
           <CardHeader>
             <CardTitle>Sign Up</CardTitle>
             <CardDescription>
@@ -134,6 +153,7 @@ const Signup = () => {
                       value={name}
                       onChange={(e) => setName(e.target.value)}
                       required
+                      disabled={showLoading}
                     />
                   </div>
                   <div className="space-y-2">
@@ -145,6 +165,7 @@ const Signup = () => {
                       value={email}
                       onChange={(e) => setEmail(e.target.value)}
                       required
+                      disabled={showLoading}
                     />
                   </div>
                   
@@ -157,13 +178,14 @@ const Signup = () => {
                       value={enrollmentNumber}
                       onChange={(e) => setEnrollmentNumber(e.target.value)}
                       required
+                      disabled={showLoading}
                     />
                   </div>
                   
                   <div className="grid grid-cols-2 gap-4">
                     <div className="space-y-2">
                       <Label htmlFor="semester">Semester</Label>
-                      <Select value={semester} onValueChange={setSemester}>
+                      <Select value={semester} onValueChange={setSemester} disabled={showLoading}>
                         <SelectTrigger>
                           <SelectValue placeholder="Select" />
                         </SelectTrigger>
@@ -182,7 +204,7 @@ const Signup = () => {
                     
                     <div className="space-y-2">
                       <Label htmlFor="branch">Branch</Label>
-                      <Select value={branch} onValueChange={setBranch}>
+                      <Select value={branch} onValueChange={setBranch} disabled={showLoading}>
                         <SelectTrigger>
                           <SelectValue placeholder="Select" />
                         </SelectTrigger>
@@ -199,7 +221,7 @@ const Signup = () => {
                   
                   <div className="space-y-2">
                     <Label htmlFor="class">Class</Label>
-                    <Select value={classRoom} onValueChange={setClassRoom}>
+                    <Select value={classRoom} onValueChange={setClassRoom} disabled={showLoading}>
                       <SelectTrigger>
                         <SelectValue placeholder="Select" />
                       </SelectTrigger>
@@ -223,6 +245,7 @@ const Signup = () => {
                       value={password}
                       onChange={(e) => setPassword(e.target.value)}
                       required
+                      disabled={showLoading}
                     />
                   </div>
                   
@@ -235,11 +258,12 @@ const Signup = () => {
                       value={confirmPassword}
                       onChange={(e) => setConfirmPassword(e.target.value)}
                       required
+                      disabled={showLoading}
                     />
                   </div>
                   
-                  <Button type="submit" className="w-full" disabled={loading}>
-                    {loading ? "Creating account..." : "Create Student Account"}
+                  <Button type="submit" className="w-full" disabled={showLoading}>
+                    {showLoading ? "Creating account..." : "Create Student Account"}
                   </Button>
                 </form>
               </TabsContent>
@@ -254,6 +278,7 @@ const Signup = () => {
                       value={name}
                       onChange={(e) => setName(e.target.value)}
                       required
+                      disabled={showLoading}
                     />
                   </div>
                   <div className="space-y-2">
@@ -265,6 +290,7 @@ const Signup = () => {
                       value={email}
                       onChange={(e) => setEmail(e.target.value)}
                       required
+                      disabled={showLoading}
                     />
                   </div>
                   <div className="space-y-2">
@@ -276,6 +302,7 @@ const Signup = () => {
                       value={password}
                       onChange={(e) => setPassword(e.target.value)}
                       required
+                      disabled={showLoading}
                     />
                   </div>
                   <div className="space-y-2">
@@ -287,10 +314,11 @@ const Signup = () => {
                       value={confirmPassword}
                       onChange={(e) => setConfirmPassword(e.target.value)}
                       required
+                      disabled={showLoading}
                     />
                   </div>
-                  <Button type="submit" className="w-full" disabled={loading}>
-                    {loading ? "Creating account..." : "Create Faculty Account"}
+                  <Button type="submit" className="w-full" disabled={showLoading}>
+                    {showLoading ? "Creating account..." : "Create Faculty Account"}
                   </Button>
                 </form>
               </TabsContent>
@@ -305,6 +333,7 @@ const Signup = () => {
                       value={name}
                       onChange={(e) => setName(e.target.value)}
                       required
+                      disabled={showLoading}
                     />
                   </div>
                   <div className="space-y-2">
@@ -316,6 +345,7 @@ const Signup = () => {
                       value={email}
                       onChange={(e) => setEmail(e.target.value)}
                       required
+                      disabled={showLoading}
                     />
                   </div>
                   <div className="space-y-2">
@@ -327,6 +357,7 @@ const Signup = () => {
                       value={password}
                       onChange={(e) => setPassword(e.target.value)}
                       required
+                      disabled={showLoading}
                     />
                   </div>
                   <div className="space-y-2">
@@ -338,10 +369,11 @@ const Signup = () => {
                       value={confirmPassword}
                       onChange={(e) => setConfirmPassword(e.target.value)}
                       required
+                      disabled={showLoading}
                     />
                   </div>
-                  <Button type="submit" className="w-full" disabled={loading}>
-                    {loading ? "Creating account..." : "Create Admin Account"}
+                  <Button type="submit" className="w-full" disabled={showLoading}>
+                    {showLoading ? "Creating account..." : "Create Admin Account"}
                   </Button>
                 </form>
               </TabsContent>
