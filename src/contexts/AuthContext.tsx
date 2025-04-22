@@ -67,6 +67,22 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
               .single();
 
             if (profile) {
+              // For student roles, fetch additional student data
+              if (profile.role === 'student') {
+                const { data: studentData } = await supabase
+                  .from('students')
+                  .select('*')
+                  .eq('user_id', session.user.id)
+                  .single();
+                  
+                if (studentData) {
+                  profile.enrollment_number = studentData.enrollment_number;
+                  profile.semester = studentData.semester;
+                  profile.branch = studentData.branch;
+                  profile.class = studentData.class;
+                }
+              }
+              
               setUser(mapProfileToUser(profile));
               setIsAuthenticated(true);
             }
@@ -90,6 +106,22 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
           .single();
 
         if (profile) {
+          // For student roles, fetch additional student data
+          if (profile.role === 'student') {
+            const { data: studentData } = await supabase
+              .from('students')
+              .select('*')
+              .eq('user_id', session.user.id)
+              .single();
+              
+            if (studentData) {
+              profile.enrollment_number = studentData.enrollment_number;
+              profile.semester = studentData.semester;
+              profile.branch = studentData.branch;
+              profile.class = studentData.class;
+            }
+          }
+          
           setUser(mapProfileToUser(profile));
           setIsAuthenticated(true);
         }
@@ -120,7 +152,7 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
     try {
       setIsLoading(true);
       
-      // Create metadata for signup
+      // Create clean metadata for signup
       const metaData: Record<string, any> = {
         name: userData.name || '',
         role: userData.role || 'student',
@@ -128,13 +160,14 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
       
       // Only include student-specific fields if role is student
       if (userData.role === 'student') {
-        if (userData.enrollmentNumber) metaData.enrollment_number = userData.enrollmentNumber;
-        if (userData.semester) metaData.semester = userData.semester;
-        if (userData.branch) metaData.branch = userData.branch;
-        if (userData.class) metaData.class = userData.class;
+        metaData.enrollment_number = userData.enrollmentNumber || '';
+        metaData.semester = userData.semester || '';
+        metaData.branch = userData.branch || '';
+        metaData.class = userData.class || '';
       }
 
       console.log("Signing up with metadata:", metaData);
+      console.log("Full user data:", userData);
       
       const { error, data } = await supabase.auth.signUp({
         email: userData.email || '',
