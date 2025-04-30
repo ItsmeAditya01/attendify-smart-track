@@ -47,54 +47,37 @@ const Students = () => {
 
   useEffect(() => {
     const fetchStudents = async () => {
-      if (!user) return;
-      
-      console.log("Current user details for student fetch:", {
-        userId: user.id,
-        userRole: user.role,
-        isAuthenticated: !!user
-      });
-
-      setLoading(true);
-      
-      const { data, error } = await supabase
-        .from("students")
-        .select("*")
-        .then(({ data, error }) => {
-          console.log("Detailed Supabase students fetch:", { 
-            data, 
-            error, 
-            dataLength: data?.length 
+      try {
+        setLoading(true);
+        const { data, error } = await supabase
+          .from("students")
+          .select("*");
+        
+        if (error) {
+          console.error("Error fetching students:", error);
+          toast({
+            title: "Error",
+            description: "Failed to load students data",
+            variant: "destructive",
           });
-
-          if (error) {
-            console.error("Comprehensive student fetch error:", error);
-            toast({
-              title: "Error loading students",
-              description: error.message,
-              variant: "destructive",
-            });
-            setStudents([]);
-          } else if (data) {
-            setStudents(
-              data.map((row: any) => ({
-                id: row.id,
-                name: row.name,
-                email: row.email,
-                enrollmentNumber: row.enrollment_number,
-                semester: row.semester,
-                branch: row.branch,
-                class: row.class,
-                attendance: 100,
-              }))
-            );
-          }
-          setLoading(false);
+          return;
+        }
+        
+        setStudents(data || []);
+      } catch (err) {
+        console.error("Exception while fetching students:", err);
+        toast({
+          title: "Error",
+          description: "An unexpected error occurred",
+          variant: "destructive",
         });
+      } finally {
+        setLoading(false);
+      }
     };
 
     fetchStudents();
-  }, [user, toast]);
+  }, [toast]);
 
   const filteredStudents = students.filter(student => {
     const matchesSearch =

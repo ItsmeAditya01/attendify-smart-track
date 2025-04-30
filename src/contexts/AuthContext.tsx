@@ -62,49 +62,64 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
         if (session?.user) {
           // Use setTimeout to prevent Supabase auth deadlocks
           setTimeout(async () => {
-            console.log("Fetching profile for user:", session.user.id);
-            const { data: profile, error } = await supabase
-              .from('profiles')
-              .select('*')
-              .eq('id', session.user.id)
-              .single();
+            try {
+              console.log("Fetching profile for user:", session.user.id);
+              const { data: profile, error } = await supabase
+                .from('profiles')
+                .select('*')
+                .eq('id', session.user.id)
+                .single();
 
-            if (error) {
-              console.error("Error fetching profile:", error);
-            }
+              if (error) {
+                console.error("Error fetching profile:", error);
+                setUser(null);
+                setIsAuthenticated(false);
+                setIsLoading(false);
+                return;
+              }
 
-            console.log("Retrieved profile:", profile);
+              console.log("Retrieved profile:", profile);
 
-            if (profile) {
-              // For student roles, fetch additional student data
-              if (profile.role === 'student') {
-                console.log("Fetching additional student data");
-                const { data: studentData, error: studentError } = await supabase
-                  .from('students')
-                  .select('*')
-                  .eq('user_id', session.user.id)
-                  .single();
+              if (profile) {
+                // For student roles, fetch additional student data
+                if (profile.role === 'student') {
+                  console.log("Fetching additional student data");
+                  const { data: studentData, error: studentError } = await supabase
+                    .from('students')
+                    .select('*')
+                    .eq('user_id', session.user.id)
+                    .single();
+                    
+                  if (studentError) {
+                    console.error("Error fetching student data:", studentError);
+                  }
                   
-                if (studentError) {
-                  console.error("Error fetching student data:", studentError);
+                  console.log("Retrieved student data:", studentData);
+                    
+                  if (studentData) {
+                    profile.enrollment_number = studentData.enrollment_number;
+                    profile.semester = studentData.semester;
+                    profile.branch = studentData.branch;
+                    profile.class = studentData.class;
+                  }
                 }
                 
-                console.log("Retrieved student data:", studentData);
-                  
-                if (studentData) {
-                  profile.enrollment_number = studentData.enrollment_number;
-                  profile.semester = studentData.semester;
-                  profile.branch = studentData.branch;
-                  profile.class = studentData.class;
-                }
+                const mappedUser = mapProfileToUser(profile);
+                console.log("Setting user state:", mappedUser);
+                setUser(mappedUser);
+                setIsAuthenticated(true);
+              } else {
+                console.log("No profile found for user:", session.user.id);
+                setUser(null);
+                setIsAuthenticated(false);
               }
-              
-              const mappedUser = mapProfileToUser(profile);
-              console.log("Setting user state:", mappedUser);
-              setUser(mappedUser);
-              setIsAuthenticated(true);
+            } catch (error) {
+              console.error("Error in auth state change handler:", error);
+              setUser(null);
+              setIsAuthenticated(false);
+            } finally {
+              setIsLoading(false);
             }
-            setIsLoading(false);
           }, 0);
         } else {
           setUser(null);
@@ -117,31 +132,45 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
     // Check for existing session
     supabase.auth.getSession().then(async ({ data: { session } }) => {
       if (session?.user) {
-        const { data: profile } = await supabase
-          .from('profiles')
-          .select('*')
-          .eq('id', session.user.id)
-          .single();
+        try {
+          const { data: profile, error } = await supabase
+            .from('profiles')
+            .select('*')
+            .eq('id', session.user.id)
+            .single();
 
-        if (profile) {
-          // For student roles, fetch additional student data
-          if (profile.role === 'student') {
-            const { data: studentData } = await supabase
-              .from('students')
-              .select('*')
-              .eq('user_id', session.user.id)
-              .single();
-              
-            if (studentData) {
-              profile.enrollment_number = studentData.enrollment_number;
-              profile.semester = studentData.semester;
-              profile.branch = studentData.branch;
-              profile.class = studentData.class;
-            }
+          if (error) {
+            console.error("Error fetching profile during initialization:", error);
+            setIsLoading(false);
+            return;
           }
-          
-          setUser(mapProfileToUser(profile));
-          setIsAuthenticated(true);
+
+          if (profile) {
+            // For student roles, fetch additional student data
+            if (profile.role === 'student') {
+              const { data: studentData, error: studentError } = await supabase
+                .from('students')
+                .select('*')
+                .eq('user_id', session.user.id)
+                .single();
+                
+              if (studentError && studentError.code !== 'PGRST116') {
+                console.error("Error fetching student data:", studentError);
+              }
+                
+              if (studentData) {
+                profile.enrollment_number = studentData.enrollment_number;
+                profile.semester = studentData.semester;
+                profile.branch = studentData.branch;
+                profile.class = studentData.class;
+              }
+            }
+            
+            setUser(mapProfileToUser(profile));
+            setIsAuthenticated(true);
+          }
+        } catch (error) {
+          console.error("Error in session initialization:", error);
         }
       }
       setIsLoading(false);
@@ -155,14 +184,23 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
   const login = async (email: string, password: string, role: UserRole) => {
     try {
       setIsLoading(true);
-      const { error } = await supabase.auth.signInWithPassword({
+      console.log(`Attempting login for ${email} with role ${role}`);
+      
+      const { data, error } = await supabase.auth.signInWithPassword({
         email,
         password,
       });
 
-      if (error) throw error;
-    } finally {
-      // Don't set isLoading to false here - the onAuthStateChange will handle that
+      if (error) {
+        console.error("Login error:", error.message);
+        throw error;
+      }
+      
+      // We don't need to set the user here as the onAuthStateChange handler will do it
+      console.log("Login successful, session created:", data.session?.user?.id);
+    } catch (error) {
+      console.error("Login failed:", error);
+      throw error;
     }
   };
 
@@ -206,8 +244,9 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
       if (userData.role === 'student') {
         await new Promise(resolve => setTimeout(resolve, 500));
       }
-    } finally {
-      // Don't set isLoading to false here - the onAuthStateChange will handle that
+    } catch (error) {
+      console.error("Signup error:", error);
+      throw error;
     }
   };
 
@@ -218,6 +257,8 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
       if (error) throw error;
       setUser(null);
       setIsAuthenticated(false);
+    } catch (error) {
+      console.error("Logout error:", error);
     } finally {
       setIsLoading(false);
     }

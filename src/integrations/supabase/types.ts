@@ -9,337 +9,68 @@ export type Json =
 export type Database = {
   public: {
     Tables: {
-      attendance: {
-        Row: {
-          created_at: string
-          date: string
-          id: string
-          marked_by: string
-          status: boolean
-          student_id: string
-          timetable_id: string
-        }
-        Insert: {
-          created_at?: string
-          date: string
-          id?: string
-          marked_by: string
-          status?: boolean
-          student_id: string
-          timetable_id: string
-        }
-        Update: {
-          created_at?: string
-          date?: string
-          id?: string
-          marked_by?: string
-          status?: boolean
-          student_id?: string
-          timetable_id?: string
-        }
-        Relationships: [
-          {
-            foreignKeyName: "attendance_marked_by_fkey"
-            columns: ["marked_by"]
-            isOneToOne: false
-            referencedRelation: "faculty"
-            referencedColumns: ["id"]
-          },
-          {
-            foreignKeyName: "attendance_student_id_fkey"
-            columns: ["student_id"]
-            isOneToOne: false
-            referencedRelation: "students"
-            referencedColumns: ["id"]
-          },
-          {
-            foreignKeyName: "attendance_timetable_id_fkey"
-            columns: ["timetable_id"]
-            isOneToOne: false
-            referencedRelation: "timetable"
-            referencedColumns: ["id"]
-          },
-        ]
-      }
-      classes: {
-        Row: {
-          branch: string
-          course_code: string
-          created_at: string
-          id: string
-          name: string
-          semester: string
-        }
-        Insert: {
-          branch: string
-          course_code: string
-          created_at?: string
-          id?: string
-          name: string
-          semester: string
-        }
-        Update: {
-          branch?: string
-          course_code?: string
-          created_at?: string
-          id?: string
-          name?: string
-          semester?: string
-        }
-        Relationships: []
-      }
       faculty: {
         Row: {
           created_at: string
-          department: Database["public"]["Enums"]["department_enum"]
+          department: string | null
           email: string
-          id: string
-          name: string
-          phone: string | null
-          subjects: string[] | null
-          user_id: string
+          faculty_number: string
+          full_name: string
+          position: string | null
         }
         Insert: {
           created_at?: string
-          department: Database["public"]["Enums"]["department_enum"]
+          department?: string | null
           email: string
-          id?: string
-          name: string
-          phone?: string | null
-          subjects?: string[] | null
-          user_id: string
+          faculty_number: string
+          full_name: string
+          position?: string | null
         }
         Update: {
           created_at?: string
-          department?: Database["public"]["Enums"]["department_enum"]
+          department?: string | null
           email?: string
-          id?: string
-          name?: string
-          phone?: string | null
-          subjects?: string[] | null
-          user_id?: string
+          faculty_number?: string
+          full_name?: string
+          position?: string | null
         }
         Relationships: []
       }
-      Faculty: {
+      student: {
         Row: {
-          created_at: string
-          id: number
-          name: string
-        }
-        Insert: {
-          created_at?: string
-          id?: number
-          name: string
-        }
-        Update: {
-          created_at?: string
-          id?: number
-          name?: string
-        }
-        Relationships: []
-      }
-      faculty_subjects: {
-        Row: {
-          created_at: string
-          faculty_id: string
-          id: string
-          subject_id: string
-        }
-        Insert: {
-          created_at?: string
-          faculty_id: string
-          id?: string
-          subject_id: string
-        }
-        Update: {
-          created_at?: string
-          faculty_id?: string
-          id?: string
-          subject_id?: string
-        }
-        Relationships: [
-          {
-            foreignKeyName: "faculty_subjects_faculty_id_fkey"
-            columns: ["faculty_id"]
-            isOneToOne: false
-            referencedRelation: "faculty"
-            referencedColumns: ["id"]
-          },
-          {
-            foreignKeyName: "faculty_subjects_subject_id_fkey"
-            columns: ["subject_id"]
-            isOneToOne: false
-            referencedRelation: "subjects"
-            referencedColumns: ["id"]
-          },
-        ]
-      }
-      profiles: {
-        Row: {
-          branch: string | null
-          class: string | null
           created_at: string
           email: string
-          enrollment_number: string | null
-          id: string
-          last_sign_in: string | null
-          name: string
-          role: string
-          semester: string | null
-          updated_at: string
+          full_name: string
+          profile_url: string | null
+          program: string
+          registration_number: string
+          section: string
+          semester: number
+          student_id: string
         }
         Insert: {
-          branch?: string | null
-          class?: string | null
           created_at?: string
           email: string
-          enrollment_number?: string | null
-          id: string
-          last_sign_in?: string | null
-          name: string
-          role: string
-          semester?: string | null
-          updated_at?: string
+          full_name: string
+          profile_url?: string | null
+          program: string
+          registration_number: string
+          section: string
+          semester: number
+          student_id: string
         }
         Update: {
-          branch?: string | null
-          class?: string | null
           created_at?: string
           email?: string
-          enrollment_number?: string | null
-          id?: string
-          last_sign_in?: string | null
-          name?: string
-          role?: string
-          semester?: string | null
-          updated_at?: string
+          full_name?: string
+          profile_url?: string | null
+          program?: string
+          registration_number?: string
+          section?: string
+          semester?: number
+          student_id?: string
         }
         Relationships: []
-      }
-      students: {
-        Row: {
-          branch: string
-          class: string
-          created_at: string
-          email: string
-          enrollment_number: string
-          id: string
-          name: string
-          semester: string
-          user_id: string
-        }
-        Insert: {
-          branch: string
-          class: string
-          created_at?: string
-          email: string
-          enrollment_number: string
-          id?: string
-          name: string
-          semester: string
-          user_id: string
-        }
-        Update: {
-          branch?: string
-          class?: string
-          created_at?: string
-          email?: string
-          enrollment_number?: string
-          id?: string
-          name?: string
-          semester?: string
-          user_id?: string
-        }
-        Relationships: []
-      }
-      subjects: {
-        Row: {
-          branch: string
-          code: string
-          created_at: string
-          credits: number
-          id: string
-          name: string
-          semester: string
-        }
-        Insert: {
-          branch: string
-          code: string
-          created_at?: string
-          credits: number
-          id?: string
-          name: string
-          semester: string
-        }
-        Update: {
-          branch?: string
-          code?: string
-          created_at?: string
-          credits?: number
-          id?: string
-          name?: string
-          semester?: string
-        }
-        Relationships: []
-      }
-      timetable: {
-        Row: {
-          class_id: string
-          created_at: string
-          day: string
-          end_time: string
-          faculty_id: string
-          id: string
-          room: string
-          start_time: string
-          subject_id: string
-        }
-        Insert: {
-          class_id: string
-          created_at?: string
-          day: string
-          end_time: string
-          faculty_id: string
-          id?: string
-          room: string
-          start_time: string
-          subject_id: string
-        }
-        Update: {
-          class_id?: string
-          created_at?: string
-          day?: string
-          end_time?: string
-          faculty_id?: string
-          id?: string
-          room?: string
-          start_time?: string
-          subject_id?: string
-        }
-        Relationships: [
-          {
-            foreignKeyName: "timetable_class_id_fkey"
-            columns: ["class_id"]
-            isOneToOne: false
-            referencedRelation: "classes"
-            referencedColumns: ["id"]
-          },
-          {
-            foreignKeyName: "timetable_faculty_id_fkey"
-            columns: ["faculty_id"]
-            isOneToOne: false
-            referencedRelation: "faculty"
-            referencedColumns: ["id"]
-          },
-          {
-            foreignKeyName: "timetable_subject_id_fkey"
-            columns: ["subject_id"]
-            isOneToOne: false
-            referencedRelation: "subjects"
-            referencedColumns: ["id"]
-          },
-        ]
       }
     }
     Views: {

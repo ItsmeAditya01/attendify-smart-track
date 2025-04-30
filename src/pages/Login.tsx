@@ -9,6 +9,8 @@ import { Label } from "@/components/ui/label";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { useToast } from "@/components/ui/use-toast";
 import { Progress } from "@/components/ui/progress";
+import { AlertCircle } from "lucide-react";
+import { Alert, AlertDescription } from "@/components/ui/alert";
 
 const Login = () => {
   const { login, isAuthenticated, isLoading } = useAuth();
@@ -18,6 +20,7 @@ const Login = () => {
   const [password, setPassword] = useState("");
   const [loggingIn, setLoggingIn] = useState(false);
   const [role, setRole] = useState<UserRole>("student");
+  const [errorMessage, setErrorMessage] = useState<string | null>(null);
 
   // Redirect if already authenticated
   useEffect(() => {
@@ -28,6 +31,8 @@ const Login = () => {
 
   const handleLogin = async (e: React.FormEvent) => {
     e.preventDefault();
+    setErrorMessage(null);
+    
     if (!email || !password) {
       toast({
         title: "Error",
@@ -40,12 +45,20 @@ const Login = () => {
     try {
       setLoggingIn(true);
       await login(email, password, role);
+      // Success is handled by the auth state change in AuthContext
     } catch (error: any) {
+      console.error("Login error:", error);
+      setErrorMessage(
+        error.message === "Invalid login credentials" 
+          ? "Invalid email or password. Please try again." 
+          : error.message || "An error occurred during login. Please try again."
+      );
       toast({
         title: "Login Failed",
         description: error.message || "Invalid credentials or user not found",
         variant: "destructive",
       });
+    } finally {
       setLoggingIn(false);
     }
   };
@@ -71,6 +84,13 @@ const Login = () => {
               {isLoading ? "Checking authentication..." : "Logging in..."}
             </p>
           </div>
+        )}
+
+        {errorMessage && (
+          <Alert variant="destructive" className="animate-shake">
+            <AlertCircle className="h-4 w-4" />
+            <AlertDescription>{errorMessage}</AlertDescription>
+          </Alert>
         )}
 
         <Card className={`animate-scale-in ${showLoading ? 'opacity-75' : ''}`}>
