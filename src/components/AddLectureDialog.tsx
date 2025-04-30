@@ -6,7 +6,9 @@ import { Label } from "@/components/ui/label";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Plus } from "lucide-react";
 import { useToast } from "@/components/ui/use-toast";
+import { supabase } from "@/integrations/supabase/client";
 
+// Define the Class interface to match our database schema
 export interface Class {
   id: string;
   day: string;
@@ -16,6 +18,7 @@ export interface Class {
   room: string;
   class: string;
 }
+
 const daysOfWeek = ["Monday", "Tuesday", "Wednesday", "Thursday", "Friday", "Saturday"];
 
 interface AddLectureDialogProps {

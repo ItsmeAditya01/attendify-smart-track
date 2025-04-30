@@ -1,3 +1,4 @@
+
 import React, { useState, useEffect } from "react";
 import { useAuth } from "@/contexts/AuthContext";
 import { Navbar } from "@/components/Navbar";
@@ -15,16 +16,38 @@ import { supabase } from "@/integrations/supabase/client";
 
 const daysOfWeek = ["Monday", "Tuesday", "Wednesday", "Thursday", "Friday", "Saturday"];
 
+// Define types to match our database schema
+interface ClassRecord {
+  id: string;
+  class: string;
+  created_at: string;
+}
+
+interface TimetableRecord {
+  id: string;
+  class: string;
+  day: string;
+  startTime: string;
+  endTime: string;
+  subject: string;
+  room: string;
+  created_at: string;
+}
+
 const Timetable = () => {
   const { user } = useAuth();
   const { toast } = useToast();
-  const [classes, setClasses] = useState<any[]>([]);
-  const [timetable, setTimetable] = useState<any[]>([]);
+  const [classes, setClasses] = useState<ClassRecord[]>([]);
+  const [timetable, setTimetable] = useState<TimetableRecord[]>([]);
   const [currentClass, setCurrentClass] = useState("CS-301");
 
   useEffect(() => {
     async function fetchClasses() {
-      const { data, error } = await supabase.from("classes").select("*");
+      // Use type casting to fix TypeScript error
+      const { data, error } = await supabase
+        .from('classes')
+        .select('*') as { data: ClassRecord[] | null; error: any };
+      
       if (!error && data) setClasses(data);
     }
     fetchClasses();
@@ -32,7 +55,11 @@ const Timetable = () => {
 
   useEffect(() => {
     async function fetchTimetable() {
-      const { data, error } = await supabase.from("timetable").select("*");
+      // Use type casting to fix TypeScript error
+      const { data, error } = await supabase
+        .from('timetable')
+        .select('*') as { data: TimetableRecord[] | null; error: any };
+      
       if (!error && data) setTimetable(data);
     }
     fetchTimetable();
