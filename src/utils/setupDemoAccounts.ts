@@ -56,7 +56,7 @@ export const setupDemoAccounts = async () => {
           enrollment_number: "EN12345",
           semester: "4th",
           branch: "Computer Science",
-          class: "CS-101",
+          class: "CS-301",
         },
       },
     });
