@@ -7,7 +7,7 @@ import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Search } from "lucide-react";
 import { useToast } from "@/components/ui/use-toast";
 import { supabase } from "@/integrations/supabase/client";
-import { Faculty, DepartmentType } from "@/components/faculty/types";
+import { Faculty } from "@/components/faculty/types";
 import { FacultyAddDialog } from "@/components/faculty/FacultyAddDialog";
 import { FacultyTable } from "@/components/faculty/FacultyTable";
 
@@ -24,38 +24,52 @@ const FacultyPage = () => {
   useEffect(() => {
     const fetchFaculty = async () => {
       setLoading(true);
-      const { data, error } = await supabase
-        .from("faculty")
-        .select("*")
-        .order("created_at", { ascending: true });
-      if (error) {
+      try {
+        const { data, error } = await supabase
+          .from("faculty")
+          .select("*")
+          .order("created_at", { ascending: true });
+
+        if (error) {
+          toast({
+            title: "Error loading faculty",
+            description: error.message,
+            variant: "destructive",
+          });
+          setFaculty([]);
+        } else {
+          // Transform the data to match our Faculty interface
+          const transformedData: Faculty[] = (data || []).map((row: any) => ({
+            id: row.id || row.faculty_number, // Use faculty_number as fallback if id doesn't exist
+            full_name: row.full_name || "",
+            email: row.email || "",
+            faculty_number: row.faculty_number || "",
+            department: row.department || null,
+            position: row.position || null,
+            created_at: row.created_at,
+            subjects: row.subjects || []
+          }));
+          setFaculty(transformedData);
+        }
+      } catch (err) {
+        console.error("Error fetching faculty:", err);
         toast({
           title: "Error loading faculty",
-          description: error.message,
+          description: "An unexpected error occurred",
           variant: "destructive",
         });
         setFaculty([]);
-      } else {
-        // Only map the fields we use; ignore records that lack needed keys.
-        setFaculty((data ?? []).map((row: any) => ({
-          id: row.id,
-          name: row.name || "",
-          email: row.email || "",
-          phone: row.phone || "",
-          department: row.department || "Computer Science",
-          subjects: row.subjects || [],
-          user_id: row.user_id,
-        })));
+      } finally {
+        setLoading(false);
       }
-      setLoading(false);
     };
     fetchFaculty();
   }, [toast]);
 
   const filteredFaculty = faculty.filter(f =>
-    f.name.toLowerCase().includes(searchTerm.toLowerCase()) ||
+    f.full_name.toLowerCase().includes(searchTerm.toLowerCase()) ||
     f.email.toLowerCase().includes(searchTerm.toLowerCase()) ||
-    f.department.toLowerCase().includes(searchTerm.toLowerCase())
+    (f.department && f.department.toLowerCase().includes(searchTerm.toLowerCase()))
   );
 
   const handleSelectFaculty = (facultyId: string) => {
@@ -76,78 +90,93 @@ const FacultyPage = () => {
 
   const handleDeleteSelected = async () => {
     if (selectedFaculty.length === 0) return;
-    const { error } = await supabase
-      .from("faculty")
-      .delete()
-      .in("id", selectedFaculty);
+    
+    try {
+      const { error } = await supabase
+        .from("faculty")
+        .delete()
+        .in("faculty_number", selectedFaculty);
 
-    if (error) {
+      if (error) {
+        toast({
+          title: "Failed to delete",
+          description: error.message,
+          variant: "destructive",
+        });
+        return;
+      }
+      
+      setFaculty(prev => prev.filter(f => !selectedFaculty.includes(f.id)));
       toast({
-        title: "Failed to delete",
-        description: error.message,
+        title: "Faculty Deleted",
+        description: `${selectedFaculty.length} faculty member(s) have been removed`,
+      });
+      setSelectedFaculty([]);
+    } catch (err) {
+      console.error("Error deleting faculty:", err);
+      toast({
+        title: "Error deleting faculty",
+        description: "An unexpected error occurred",
         variant: "destructive",
       });
-      return;
     }
-    setFaculty(prev => prev.filter(f => !selectedFaculty.includes(f.id)));
-    toast({
-      title: "Faculty Deleted",
-      description: `${selectedFaculty.length} faculty member(s) have been removed`,
-    });
-    setSelectedFaculty([]);
   };
 
-  const handleAddFaculty = async (newFaculty: Omit<Faculty, "id" | "user_id">) => {
+  const handleAddFaculty = async (newFaculty: Omit<Faculty, "id" | "created_at">) => {
     setAddLoading(true);
-    if (!user?.id) {
-      toast({
-        title: "No user detected",
-        description: "You must be logged in to add faculty",
-        variant: "destructive",
-      });
+    
+    try {
+      const { data, error } = await supabase
+        .from("faculty")
+        .insert({
+          full_name: newFaculty.full_name,
+          email: newFaculty.email,
+          faculty_number: newFaculty.faculty_number,
+          department: newFaculty.department,
+          position: newFaculty.position
+        })
+        .select()
+        .single();
+
       setAddLoading(false);
-      return false;
-    }
-    const { data, error } = await supabase
-      .from("faculty")
-      .insert({
-        name: newFaculty.name,
-        email: newFaculty.email,
-        phone: newFaculty.phone || null,
-        department: newFaculty.department,
-        subjects: newFaculty.subjects.length ? newFaculty.subjects : null,
-        user_id: user.id,
-      })
-      .select()
-      .single();
 
-    setAddLoading(false);
-
-    if (error) {
+      if (error) {
+        toast({
+          title: "Failed to add",
+          description: error.message,
+          variant: "destructive",
+        });
+        return false;
+      }
+      
+      const newFacultyWithId: Faculty = {
+        id: data.faculty_number,
+        full_name: data.full_name,
+        email: data.email,
+        faculty_number: data.faculty_number,
+        department: data.department,
+        position: data.position,
+        created_at: data.created_at,
+        subjects: newFaculty.subjects || []
+      };
+      
+      setFaculty(prev => [...prev, newFacultyWithId]);
+      
       toast({
-        title: "Failed to add",
-        description: error.message,
+        title: "Faculty Added",
+        description: `${newFaculty.full_name} has been added successfully`,
+      });
+      return true;
+    } catch (err) {
+      console.error("Error adding faculty:", err);
+      setAddLoading(false);
+      toast({
+        title: "Error adding faculty",
+        description: "An unexpected error occurred",
         variant: "destructive",
       });
       return false;
     }
-    setFaculty(prev => [
-      ...prev,
-      {
-        id: data.id,
-        name: data.name,
-        email: data.email,
-        phone: data.phone,
-        department: data.department,
-        subjects: data.subjects || [],
-        user_id: data.user_id,
-      } as Faculty,
-    ]);
-    toast({
-      title: "Faculty Added",
-      description: `${newFaculty.name} has been added successfully`,
-    });
-    return true;
   };
 
   // Only admin can access this page

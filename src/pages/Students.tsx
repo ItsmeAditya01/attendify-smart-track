@@ -1,30 +1,27 @@
+
 import React, { useEffect, useState } from "react";
 import { useAuth } from "@/contexts/AuthContext";
 import { supabase } from "@/integrations/supabase/client";
 import { useToast } from "@/components/ui/use-toast";
 import { Navbar } from "@/components/Navbar";
 import { Button } from "@/components/ui/button";
-import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
+import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
-import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { Tabs, TabsList, TabsTrigger } from "@/components/ui/tabs";
-import { Checkbox } from "@/components/ui/checkbox";
-import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger } from "@/components/ui/dialog";
-import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
-import { Label } from "@/components/ui/label";
-import { Plus, Search, UserPlus, UserMinus } from "lucide-react";
+import { Search, UserMinus } from "lucide-react";
 import { AddStudentDialog } from "@/components/students/AddStudentDialog";
 import { StudentTable } from "@/components/students/StudentTable";
 
 interface Student {
   id: string;
-  name: string;
+  full_name: string;
   email: string;
-  enrollmentNumber: string;
-  semester: string;
-  branch: string;
-  class: string;
-  attendance: number;
+  registration_number: string;
+  semester: number;
+  program: string;
+  section: string;
+  profile_url?: string | null;
+  attendance?: number; // This is mock data we'll add client-side
 }
 
 const Students = () => {
@@ -33,14 +30,6 @@ const Students = () => {
   const [students, setStudents] = useState<Student[]>([]);
   const [searchTerm, setSearchTerm] = useState("");
   const [selectedStudents, setSelectedStudents] = useState<string[]>([]);
-  const [newStudent, setNewStudent] = useState<Omit<Student, "id" | "attendance">>({
-    name: "",
-    email: "",
-    enrollmentNumber: "",
-    semester: "",
-    branch: "",
-    class: ""
-  });
   const [currentTab, setCurrentTab] = useState("all");
   const [loading, setLoading] = useState(true);
   const [addLoading, setAddLoading] = useState(false);
@@ -50,7 +39,7 @@ const Students = () => {
       try {
         setLoading(true);
         const { data, error } = await supabase
-          .from("students")
+          .from("student")
           .select("*");
         
         if (error) {
@@ -63,7 +52,21 @@ const Students = () => {
           return;
         }
         
-        setStudents(data || []);
+        // Transform database data to match our Student interface
+        const transformedData: Student[] = (data || []).map(student => ({
+          id: student.student_id,
+          full_name: student.full_name,
+          email: student.email,
+          registration_number: student.registration_number,
+          semester: student.semester,
+          program: student.program,
+          section: student.section,
+          profile_url: student.profile_url,
+          // Add mock attendance data (in a real app, this would come from the database)
+          attendance: Math.floor(Math.random() * 30) + 70 // Random attendance between 70-100%
+        }));
+        
+        setStudents(transformedData);
       } catch (err) {
         console.error("Exception while fetching students:", err);
         toast({
@@ -81,12 +84,12 @@ const Students = () => {
 
   const filteredStudents = students.filter(student => {
     const matchesSearch =
-      student.name.toLowerCase().includes(searchTerm.toLowerCase()) ||
+      student.full_name.toLowerCase().includes(searchTerm.toLowerCase()) ||
       student.email.toLowerCase().includes(searchTerm.toLowerCase()) ||
-      student.enrollmentNumber.toLowerCase().includes(searchTerm.toLowerCase());
+      student.registration_number.toLowerCase().includes(searchTerm.toLowerCase());
 
     if (currentTab === "all") return matchesSearch;
-    return matchesSearch && student.class === currentTab;
+    return matchesSearch && student.section === currentTab;
   });
 
   const handleSelectStudent = (studentId: string) => {
@@ -107,90 +110,103 @@ const Students = () => {
 
   const handleDeleteSelected = async () => {
     if (selectedStudents.length === 0) return;
-    const { error } = await supabase
-      .from("students")
-      .delete()
-      .in("id", selectedStudents);
+    
+    try {
+      const { error } = await supabase
+        .from("student")
+        .delete()
+        .in("student_id", selectedStudents);
 
-    if (error) {
+      if (error) {
+        toast({
+          title: "Failed to delete students",
+          description: error.message,
+          variant: "destructive",
+        });
+        return;
+      }
+
+      setStudents(prev => prev.filter(student => !selectedStudents.includes(student.id)));
       toast({
-        title: "Failed to delete students",
-        description: error.message,
-        variant: "destructive",
+        title: "Students Deleted",
+        description: `${selectedStudents.length} students have been removed`,
       });
-      return;
-    }
-
-    setStudents(prev => prev.filter(student => !selectedStudents.includes(student.id)));
-    toast({
-      title: "Students Deleted",
-      description: `${selectedStudents.length} students have been removed`,
-    });
-    setSelectedStudents([]);
-  };
-
-  const handleAddStudent = async () => {
-    if (!newStudent.name || !newStudent.email || !newStudent.enrollmentNumber || !newStudent.semester || !newStudent.branch || !newStudent.class) {
+      setSelectedStudents([]);
+    } catch (err) {
+      console.error("Error deleting students:", err);
       toast({
         title: "Error",
-        description: "Please fill in all required fields",
+        description: "An unexpected error occurred while deleting students",
         variant: "destructive",
       });
-      return;
     }
+  };
+
+  const handleAddStudent = async (studentData: {
+    full_name: string;
+    email: string;
+    registration_number: string;
+    semester: number;
+    program: string;
+    section: string;
+  }) => {
     setAddLoading(true);
-    const { data, error } = await supabase
-      .from("students")
-      .insert({
-        name: newStudent.name,
-        email: newStudent.email,
-        enrollment_number: newStudent.enrollmentNumber,
-        semester: newStudent.semester,
-        branch: newStudent.branch,
-        class: newStudent.class,
-        user_id: user.id,
-      })
-      .select()
-      .single();
+    
+    try {
+      const { data, error } = await supabase
+        .from("student")
+        .insert({
+          full_name: studentData.full_name,
+          email: studentData.email,
+          registration_number: studentData.registration_number,
+          semester: studentData.semester,
+          program: studentData.program,
+          section: studentData.section,
+          student_id: `STU-${Math.floor(Math.random() * 100000)}` // Generate a random student ID
+        })
+        .select()
+        .single();
 
-    setAddLoading(false);
+      setAddLoading(false);
 
-    if (error) {
+      if (error) {
+        toast({
+          title: "Failed to add",
+          description: error.message,
+          variant: "destructive",
+        });
+        return false;
+      }
+
+      const newStudent: Student = {
+        id: data.student_id,
+        full_name: data.full_name,
+        email: data.email,
+        registration_number: data.registration_number,
+        semester: data.semester,
+        program: data.program,
+        section: data.section,
+        profile_url: data.profile_url,
+        attendance: 100 // New students start with 100% attendance
+      };
+
+      setStudents(prev => [...prev, newStudent]);
+
       toast({
-        title: "Failed to add",
-        description: error.message,
+        title: "Student Added",
+        description: `${studentData.full_name} has been added successfully`,
+      });
+      return true;
+    } catch (err) {
+      console.error("Error adding student:", err);
+      setAddLoading(false);
+      toast({
+        title: "Error",
+        description: "An unexpected error occurred while adding the student",
         variant: "destructive",
       });
-      return;
+      return false;
     }
-
-    setStudents(prev => [
-      ...prev,
-      {
-        id: data.id,
-        name: data.name,
-        email: data.email,
-        enrollmentNumber: data.enrollment_number,
-        semester: data.semester,
-        branch: data.branch,
-        class: data.class,
-        attendance: 100
-      }
-    ]);
-
-    toast({
-      title: "Student Added",
-      description: `${newStudent.name} has been added successfully`,
-    });
-
-    setNewStudent({
-      name: "",
-      email: "",
-      enrollmentNumber: "",
-      semester: "",
-      branch: "",
-      class: ""
-    });
   };
 
   if (user?.role === "student") {
@@ -207,7 +223,7 @@ const Students = () => {
     );
   }
 
-  const classes = [...new Set(students.map(s => s.class))];
+  const sections = [...new Set(students.map(s => s.section))];
 
   return (
     <div className="min-h-screen bg-gray-50">
@@ -231,52 +247,7 @@ const Students = () => {
               </Button>
             )}
             <AddStudentDialog
-              onAddStudent={async (studentData) => {
-                setAddLoading(true);
-                const { data, error } = await supabase
-                  .from("students")
-                  .insert({
-                    name: studentData.name,
-                    email: studentData.email,
-                    enrollment_number: studentData.enrollmentNumber,
-                    semester: studentData.semester,
-                    branch: studentData.branch,
-                    class: studentData.class,
-                    user_id: user.id,
-                  })
-                  .select()
-                  .single();
-
-                setAddLoading(false);
-
-                if (error) {
-                  toast({
-                    title: "Failed to add",
-                    description: error.message,
-                    variant: "destructive",
-                  });
-                  return;
-                }
-
-                setStudents(prev => [
-                  ...prev,
-                  {
-                    id: data.id,
-                    name: data.name,
-                    email: data.email,
-                    enrollmentNumber: data.enrollment_number,
-                    semester: data.semester,
-                    branch: data.branch,
-                    class: data.class,
-                    attendance: 100
-                  }
-                ]);
-
-                toast({
-                  title: "Student Added",
-                  description: `${studentData.name} has been added successfully`,
-                });
-              }}
+              onAddStudent={handleAddStudent}
               addLoading={addLoading}
             />
           </div>
@@ -296,9 +267,9 @@ const Students = () => {
           <CardHeader className="p-4 pb-0">
             <Tabs defaultValue="all" onValueChange={setCurrentTab}>
               <TabsList className="grid grid-cols-4 sm:w-auto">
-                <TabsTrigger value="all">All Classes</TabsTrigger>
-                {classes.slice(0, 3).map(cls => (
-                  <TabsTrigger key={cls} value={cls}>{cls}</TabsTrigger>
+                <TabsTrigger value="all">All Sections</TabsTrigger>
+                {sections.slice(0, 3).map(section => (
+                  <TabsTrigger key={section} value={section}>{section}</TabsTrigger>
                 ))}
               </TabsList>
             </Tabs>

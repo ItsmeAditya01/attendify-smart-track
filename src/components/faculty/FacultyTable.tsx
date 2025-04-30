@@ -38,9 +38,9 @@ export const FacultyTable: React.FC<FacultyTableProps> = ({
             </TableHead>
             <TableHead>Name</TableHead>
             <TableHead className="hidden md:table-cell">Email</TableHead>
-            <TableHead className="hidden lg:table-cell">Phone</TableHead>
+            <TableHead className="hidden lg:table-cell">ID</TableHead>
             <TableHead>Department</TableHead>
-            <TableHead className="hidden lg:table-cell">Subjects</TableHead>
+            <TableHead className="hidden lg:table-cell">Position</TableHead>
           </TableRow>
         </TableHeader>
         <TableBody>
@@ -65,7 +65,7 @@ export const FacultyTable: React.FC<FacultyTableProps> = ({
                     onCheckedChange={() => onSelectFaculty(fac.id)}
                   />
                 </TableCell>
-                <TableCell className="font-medium">{fac.name}</TableCell>
+                <TableCell className="font-medium">{fac.full_name}</TableCell>
                 <TableCell className="hidden md:table-cell">
                   <div className="flex items-center gap-2">
                     <Mail className="h-4 w-4 text-attendance-primary" />
@@ -75,25 +75,16 @@ export const FacultyTable: React.FC<FacultyTableProps> = ({
                 <TableCell className="hidden lg:table-cell">
                   <div className="flex items-center gap-2">
                     <Phone className="h-4 w-4 text-attendance-secondary" />
-                    {fac.phone}
+                    {fac.faculty_number}
                   </div>
                 </TableCell>
                 <TableCell>
                   <span className="bg-attendance-light text-attendance-primary px-2 py-1 rounded text-xs">
-                    {fac.department}
+                    {fac.department || "N/A"}
                   </span>
                 </TableCell>
                 <TableCell className="hidden lg:table-cell">
-                  <div className="flex flex-wrap gap-1">
-                    {fac.subjects.map(subject => (
-                      <span
-                        key={subject}
-                        className="bg-gray-100 text-gray-700 px-2 py-0.5 rounded-full text-xs"
-                      >
-                        {subject}
-                      </span>
-                    ))}
-                  </div>
+                  {fac.position || "N/A"}
                 </TableCell>
               </TableRow>
             ))

@@ -3,10 +3,11 @@ export type DepartmentType = "Computer Science" | "Information Technology" | "El
 
 export interface Faculty {
   id: string;
-  name: string;
+  full_name: string;
   email: string;
-  phone: string | null;
-  department: DepartmentType;
-  subjects: string[];
-  user_id: string;
+  faculty_number: string;
+  department: string | null;
+  position: string | null;
+  created_at: string;
+  subjects?: string[];
 }

@@ -8,9 +8,15 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@
 import { Plus } from "lucide-react";
 
 interface AddStudentDialogProps {
-  onAddStudent: (student: Omit<any, "id" | "attendance">) => void;
+  onAddStudent: (student: {
+    full_name: string;
+    email: string;
+    registration_number: string;
+    semester: number;
+    program: string;
+    section: string;
+  }) => Promise<boolean>;
   addLoading: boolean;
-  classes?: string[];
 }
 
 export const AddStudentDialog: React.FC<AddStudentDialogProps> = ({
@@ -19,20 +25,29 @@ export const AddStudentDialog: React.FC<AddStudentDialogProps> = ({
 }) => {
   const [open, setOpen] = useState(false);
   const [form, setForm] = useState({
-    name: "",
+    full_name: "",
     email: "",
-    enrollmentNumber: "",
-    semester: "",
-    branch: "",
-    class: ""
+    registration_number: "",
+    semester: 1,
+    program: "Computer Science",
+    section: "CS-301"
   });
 
-  const reset = () => setForm({ name: "", email: "", enrollmentNumber: "", semester: "", branch: "", class: "" });
+  const reset = () => setForm({
+    full_name: "",
+    email: "",
+    registration_number: "",
+    semester: 1,
+    program: "Computer Science",
+    section: "CS-301"
+  });
 
-  const handleAdd = () => {
-    onAddStudent(form);
-    reset();
-    setOpen(false);
+  const handleAdd = async () => {
+    const success = await onAddStudent(form);
+    if (success) {
+      reset();
+      setOpen(false);
+    }
   };
 
   return (
@@ -48,11 +63,11 @@ export const AddStudentDialog: React.FC<AddStudentDialogProps> = ({
         </DialogHeader>
         <div className="space-y-4 py-4">
           <div className="space-y-2">
-            <Label htmlFor="name">Full Name</Label>
+            <Label htmlFor="fullName">Full Name</Label>
             <Input
-              id="name"
-              value={form.name}
-              onChange={e => setForm({ ...form, name: e.target.value })}
+              id="fullName"
+              value={form.full_name}
+              onChange={e => setForm({ ...form, full_name: e.target.value })}
             />
           </div>
           <div className="space-y-2">
@@ -65,40 +80,40 @@ export const AddStudentDialog: React.FC<AddStudentDialogProps> = ({
             />
           </div>
           <div className="space-y-2">
-            <Label htmlFor="enrollmentNumber">Enrollment Number</Label>
+            <Label htmlFor="registrationNumber">Registration Number</Label>
             <Input
-              id="enrollmentNumber"
-              value={form.enrollmentNumber}
-              onChange={e => setForm({ ...form, enrollmentNumber: e.target.value })}
+              id="registrationNumber"
+              value={form.registration_number}
+              onChange={e => setForm({ ...form, registration_number: e.target.value })}
             />
           </div>
           <div className="grid grid-cols-2 gap-4">
             <div className="space-y-2">
               <Label htmlFor="semester">Semester</Label>
               <Select
-                value={form.semester}
-                onValueChange={value => setForm({ ...form, semester: value })}
+                value={form.semester.toString()}
+                onValueChange={value => setForm({ ...form, semester: parseInt(value) })}
               >
                 <SelectTrigger>
                   <SelectValue placeholder="Select" />
                 </SelectTrigger>
                 <SelectContent>
-                  <SelectItem value="1st">1st</SelectItem>
-                  <SelectItem value="2nd">2nd</SelectItem>
-                  <SelectItem value="3rd">3rd</SelectItem>
-                  <SelectItem value="4th">4th</SelectItem>
-                  <SelectItem value="5th">5th</SelectItem>
-                  <SelectItem value="6th">6th</SelectItem>
-                  <SelectItem value="7th">7th</SelectItem>
-                  <SelectItem value="8th">8th</SelectItem>
+                  <SelectItem value="1">1st</SelectItem>
+                  <SelectItem value="2">2nd</SelectItem>
+                  <SelectItem value="3">3rd</SelectItem>
+                  <SelectItem value="4">4th</SelectItem>
+                  <SelectItem value="5">5th</SelectItem>
+                  <SelectItem value="6">6th</SelectItem>
+                  <SelectItem value="7">7th</SelectItem>
+                  <SelectItem value="8">8th</SelectItem>
                 </SelectContent>
               </Select>
             </div>
             <div className="space-y-2">
-              <Label htmlFor="branch">Branch</Label>
+              <Label htmlFor="program">Program</Label>
               <Select
-                value={form.branch}
-                onValueChange={value => setForm({ ...form, branch: value })}
+                value={form.program}
+                onValueChange={value => setForm({ ...form, program: value })}
               >
                 <SelectTrigger>
                   <SelectValue placeholder="Select" />
@@ -114,10 +129,10 @@ export const AddStudentDialog: React.FC<AddStudentDialogProps> = ({
             </div>
           </div>
           <div className="space-y-2">
-            <Label htmlFor="class">Class</Label>
+            <Label htmlFor="section">Section</Label>
             <Select
-              value={form.class}
-              onValueChange={value => setForm({ ...form, class: value })}
+              value={form.section}
+              onValueChange={value => setForm({ ...form, section: value })}
             >
               <SelectTrigger>
                 <SelectValue placeholder="Select" />
@@ -137,4 +152,3 @@ export const AddStudentDialog: React.FC<AddStudentDialogProps> = ({
     </Dialog>
   );
 };
-
