@@ -12,7 +12,7 @@ export const setupDemoAccounts = async () => {
     // Admin account
     const { error: adminError } = await supabase.auth.signUp({
       email: "admin@example.com",
-      password: "password",
+      password: "password123",
       options: {
         data: {
           name: "Admin User",
@@ -30,7 +30,7 @@ export const setupDemoAccounts = async () => {
     // Faculty account
     const { error: facultyError } = await supabase.auth.signUp({
       email: "faculty@example.com",
-      password: "password",
+      password: "password123",
       options: {
         data: {
           name: "Faculty User",
@@ -48,7 +48,7 @@ export const setupDemoAccounts = async () => {
     // Student account
     const { error: studentError } = await supabase.auth.signUp({
       email: "student@example.com",
-      password: "password",
+      password: "password123",
       options: {
         data: {
           name: "Student User",

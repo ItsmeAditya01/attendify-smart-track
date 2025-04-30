@@ -39,18 +39,22 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
   const [isAuthenticated, setIsAuthenticated] = useState<boolean>(false);
   const [isLoading, setIsLoading] = useState<boolean>(true);
 
-  // Helper function to convert Supabase profile to our User type
-  const mapProfileToUser = (profile: any): User => {
-    console.log("Mapping profile to user:", profile);
+  // Helper function to extract user data from Supabase auth session
+  const extractUserDataFromSession = (session: any) => {
+    if (!session || !session.user) return null;
+    
+    // Extract user metadata (which contains our custom fields)
+    const metadata = session.user.user_metadata || {};
+    
     return {
-      id: profile.id,
-      name: profile.name,
-      email: profile.email,
-      role: profile.role as UserRole,
-      enrollmentNumber: profile.enrollment_number || undefined,
-      semester: profile.semester || undefined,
-      branch: profile.branch || undefined,
-      class: profile.class || undefined,
+      id: session.user.id,
+      name: metadata.name || session.user.email,
+      email: session.user.email,
+      role: metadata.role || 'student',
+      enrollmentNumber: metadata.enrollment_number,
+      semester: metadata.semester,
+      branch: metadata.branch,
+      class: metadata.class
     };
   };
 
@@ -63,53 +67,14 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
           // Use setTimeout to prevent Supabase auth deadlocks
           setTimeout(async () => {
             try {
-              console.log("Fetching profile for user:", session.user.id);
-              const { data: profile, error } = await supabase
-                .from('profiles')
-                .select('*')
-                .eq('id', session.user.id)
-                .single();
-
-              if (error) {
-                console.error("Error fetching profile:", error);
-                setUser(null);
-                setIsAuthenticated(false);
-                setIsLoading(false);
-                return;
-              }
-
-              console.log("Retrieved profile:", profile);
-
-              if (profile) {
-                // For student roles, fetch additional student data
-                if (profile.role === 'student') {
-                  console.log("Fetching additional student data");
-                  const { data: studentData, error: studentError } = await supabase
-                    .from('students')
-                    .select('*')
-                    .eq('user_id', session.user.id)
-                    .single();
-                    
-                  if (studentError) {
-                    console.error("Error fetching student data:", studentError);
-                  }
-                  
-                  console.log("Retrieved student data:", studentData);
-                    
-                  if (studentData) {
-                    profile.enrollment_number = studentData.enrollment_number;
-                    profile.semester = studentData.semester;
-                    profile.branch = studentData.branch;
-                    profile.class = studentData.class;
-                  }
-                }
-                
-                const mappedUser = mapProfileToUser(profile);
-                console.log("Setting user state:", mappedUser);
-                setUser(mappedUser);
+              console.log("Session user data:", session.user);
+              const userData = extractUserDataFromSession(session);
+              
+              if (userData) {
+                setUser(userData);
                 setIsAuthenticated(true);
               } else {
-                console.log("No profile found for user:", session.user.id);
+                console.log("Could not extract user data from session");
                 setUser(null);
                 setIsAuthenticated(false);
               }
@@ -133,40 +98,10 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
     supabase.auth.getSession().then(async ({ data: { session } }) => {
       if (session?.user) {
         try {
-          const { data: profile, error } = await supabase
-            .from('profiles')
-            .select('*')
-            .eq('id', session.user.id)
-            .single();
-
-          if (error) {
-            console.error("Error fetching profile during initialization:", error);
-            setIsLoading(false);
-            return;
-          }
-
-          if (profile) {
-            // For student roles, fetch additional student data
-            if (profile.role === 'student') {
-              const { data: studentData, error: studentError } = await supabase
-                .from('students')
-                .select('*')
-                .eq('user_id', session.user.id)
-                .single();
-                
-              if (studentError && studentError.code !== 'PGRST116') {
-                console.error("Error fetching student data:", studentError);
-              }
-                
-              if (studentData) {
-                profile.enrollment_number = studentData.enrollment_number;
-                profile.semester = studentData.semester;
-                profile.branch = studentData.branch;
-                profile.class = studentData.class;
-              }
-            }
-            
-            setUser(mapProfileToUser(profile));
+          const userData = extractUserDataFromSession(session);
+          
+          if (userData) {
+            setUser(userData);
             setIsAuthenticated(true);
           }
         } catch (error) {
@@ -181,10 +116,10 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
     };
   }, []);
 
-  const login = async (email: string, password: string, role: UserRole) => {
+  const login = async (email: string, password: string) => {
     try {
       setIsLoading(true);
-      console.log(`Attempting login for ${email} with role ${role}`);
+      console.log(`Attempting login for ${email}`);
       
       const { data, error } = await supabase.auth.signInWithPassword({
         email,
@@ -201,6 +136,8 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
     } catch (error) {
       console.error("Login failed:", error);
       throw error;
+    } finally {
+      setIsLoading(false);
     }
   };
 
@@ -239,14 +176,11 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
       }
       
       console.log("Signup successful:", data);
-
-      // If student role, ensure we wait a moment for the database trigger to do its work
-      if (userData.role === 'student') {
-        await new Promise(resolve => setTimeout(resolve, 500));
-      }
     } catch (error) {
       console.error("Signup error:", error);
       throw error;
+    } finally {
+      setIsLoading(false);
     }
   };
 
